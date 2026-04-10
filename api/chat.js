@@ -1,4 +1,3 @@
-
 export const config = {
   runtime: 'edge',
 };
@@ -26,7 +25,7 @@ export default async function handler(req) {
       };
     }
 
-    // 💡 ここを「gemini-1.5-flash-latest」に修正しました！
+    // 💡 モデル名を「gemini-1.5-flash-latest」に指定
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     // 3. Geminiに通信
