@@ -5,30 +5,51 @@ export const config = {
 export default async function handler(req) {
   try {
     const body = await req.json();
+    const apiKey = process.env.GEMINI_API_KEY;
 
-    // 1. フロントエンドから送られてきたメッセージを取り出す
+    // 1. フロントエンド（Claude形式）のメッセージ履歴をGemini形式に変換
     const messages = body.messages || [];
-    const lastMessage = messages.length > 0 ? messages[messages.length - 1].content : "こんにちは";
+    const geminiContents = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content || " " }]
+    }));
 
-    // 2. Gemini APIの設定
-    const apiKey = process.env.GEMINI_API_KEY; // Vercelに預ける鍵の名前
+    // 2. Geminiへ送るデータを作成
+    const payload = {
+      contents: geminiContents
+    };
+
+    // もしシステムプロンプト（AIへの役割指示）があればセットする
+    if (body.system) {
+      payload.system_instruction = {
+        parts: [{ text: body.system }]
+      };
+    }
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    // 3. Geminiへ通信
+    // 3. Geminiに通信
     const geminiReq = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: lastMessage }] }]
-      })
+      body: JSON.stringify(payload)
     });
 
     const data = await geminiReq.json();
 
-    // 4. Geminiからの返事を取り出す
-    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "エラーが発生しました。";
+    // 💡もしGeminiからエラーが返ってきたら、その本当の理由を画面に表示させる
+    if (data.error) {
+      return new Response(JSON.stringify({
+        content: [{ text: `Gemini APIエラー: ${data.error.message}` }]
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-    // 5. 元のClaudeの形式に少し似せてフロントエンドへ返す
+    // 4. 成功した場合は返事を取り出す
+    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "返事が空っぽでした。";
+
+    // 5. フロントエンドへ返す
     return new Response(JSON.stringify({
       content: [{ text: replyText }]
     }), {
@@ -36,7 +57,10 @@ export default async function handler(req) {
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    // 💡Vercel側でプログラムが壊れた場合のエラー
+    return new Response(JSON.stringify({
+      content: [{ text: `Vercelプログラムエラー: ${error.message}` }]
+    }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
