@@ -25,8 +25,8 @@ export default async function handler(req) {
       };
     }
 
-    // 💡 モデル名を「gemini-1.5-flash-latest」に指定
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    // 💡 モデル名を「gemini-1.5-pro」に変更！
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
 
     // 3. Geminiに通信
     const geminiReq = await fetch(url, {
