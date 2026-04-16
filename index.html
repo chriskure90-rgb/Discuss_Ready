@@ -1824,25 +1824,6 @@ Labels: My Summary:, My Connection:, My Opinion:, Counterargument to Consider: (
   try {
     let reply = await claudeChat(history, system, 400);
 
-
-Material: "${mat?.title || 'Unknown'}"
-Key concepts: ${concepts || 'none'}
-Content: ${content || 'none'}
-
-The 4 steps (in order):
-1. Understand — help the student grasp the material and key concepts
-2. Connect — help them relate it to broader ideas or their own experience
-3. Give your opinion — guide them to form a personal stance on the material
-4. Consider another view — help them think about counterarguments or alternative perspectives
-
-Rules:
-- Stay on the CURRENT step (Step ${state.currentStep}: ${stepName}) until the student has engaged meaningfully with it
-- When you judge the student is ready to move on, end your reply with exactly: [STEP:${Math.min(state.currentStep + 1, 4)}]
-- If you think they should stay on the current step, end with: [STEP:${state.currentStep}]
-- Never mention the step numbers or names to the student — guide them naturally
-- Keep replies to 2-4 sentences
-- Use **bold** for key terms`;
-
   try {
     let reply = await claudeChat(history, system, 400);
     document.getElementById(typingId)?.remove();
