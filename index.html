@@ -1746,12 +1746,14 @@ async function sendPrepFreeChat() {
   const cleanMsgs = state.msgs.filter(m => !(m.role === 'ai' && stagePattern.test(m.text)));
   const history = cleanMsgs.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
 
-  const stepName = ['','Understand','Connect','Give your opinion','Consider another view'][state.currentStep] || 'Understand';
+const stepName = ['','Understand','Connect','Give your opinion','Consider another view'][state.currentStep] || 'Understand';
+  
+  // 👇ここから置き換える
   const system = `
 # ROLE
-You are a warm, supportive AI tutor helping an international student prepare for an English-medium academic discussion.
+You are a warm, supportive AI tutor helping an international student prepare for an English-medium academic discussion. You are currently on Step ${state.currentStep}: "${stepName}".
 
-# MATERIAL CONTEXT (※アプリ内の文章を読み込ませるための魔法のコードです)
+# MATERIAL CONTEXT
 Title: "${mat?.title || 'Unknown'}"
 Key concepts: ${concepts || 'none'}
 Content: ${content || 'none'}
@@ -1806,12 +1808,22 @@ Goal: Identify an opposing view that directly challenges their Stage 3 reason wi
 After Stage 4: "You have completed all 4 stages. Here is your Rehearsal Summary — sentences you can use when speaking in class today:"
 Labels: My Summary:, My Connection:, My Opinion:, Counterargument to Consider: (1-2 sentences each).
 
+# DYNAMIC STEP RULES
+- Stay on the CURRENT step (Step ${state.currentStep}: ${stepName}) until the student has engaged meaningfully with it.
+- When you judge the student is ready to move on, end your reply with exactly: [STEP:${Math.min(state.currentStep + 1, 4)}]
+- If you think they should stay on the current step, end with: [STEP:${state.currentStep}]
+
 # FORMAT AND TONE
 - Warm, conversational prose (CEFR B1).
 - Max 3 sentences per response (excluding Score).
 - Total word count under 60 words.
 - No bullet points or lists in conversation.
 `;
+  // 👆ここまで置き換える
+  
+  try {
+    let reply = await claudeChat(history, system, 400);
+
 
 Material: "${mat?.title || 'Unknown'}"
 Key concepts: ${concepts || 'none'}
