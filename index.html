@@ -1238,7 +1238,7 @@ function toast(msg, type='') {
 // ══════════════════════════════════════════
 // CLAUDE API
 // ══════════════════════════════════════════
-async function (prompt, system = '', maxTok = 600) {
+async function callClaude(prompt, system = '', maxTok = 600) {
   const apiUrl = '/api/chat-mistral';  // ← ここに「-mistral」を付け足す！
   const payload = {
     messages: [{ role: 'user', content: prompt }]
