@@ -1238,8 +1238,8 @@ function toast(msg, type='') {
 // ══════════════════════════════════════════
 // CLAUDE API
 // ══════════════════════════════════════════
-async function callClaude(prompt, system = '', maxTok = 600) {
-  const apiUrl = '/api/chat'; 
+async function (prompt, system = '', maxTok = 600) {
+  const apiUrl = '/api/chat-mistral';  // ← ここに「-mistral」を付け足す！
   const payload = {
     messages: [{ role: 'user', content: prompt }]
   };
@@ -1258,7 +1258,7 @@ async function callClaude(prompt, system = '', maxTok = 600) {
 }
 
 async function claudeChat(history, system, maxTok = 300) {
-  const apiUrl = '/api/chat';
+  const apiUrl = '/api/chat-mistral';
   const payload = {
     messages: history
   };
