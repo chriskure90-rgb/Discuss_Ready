@@ -1746,9 +1746,8 @@ async function sendPrepFreeChat() {
   const cleanMsgs = state.msgs.filter(m => !(m.role === 'ai' && stagePattern.test(m.text)));
   const history = cleanMsgs.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
 
-const stepName = ['','Understand','Connect','Give your opinion','Consider another view'][state.currentStep] || 'Understand';
-  
-  // 👇ここから置き換える
+  const stepName = ['','Understand','Connect','Give your opinion','Consider another view'][state.currentStep] || 'Understand';
+
   const system = `
 # ROLE
 You are a warm, supportive AI tutor helping an international student prepare for an English-medium academic discussion. You are currently on Step ${state.currentStep}: "${stepName}".
@@ -1819,14 +1818,39 @@ Labels: My Summary:, My Connection:, My Opinion:, Counterargument to Consider: (
 - Total word count under 60 words.
 - No bullet points or lists in conversation.
 `;
-  // 👆ここまで置き換える
-  
-  try {
-    let reply = await claudeChat(history, system, 400);
 
   try {
     let reply = await claudeChat(history, system, 400);
     document.getElementById(typingId)?.remove();
+
+    // Parse and strip step signal
+    const stepMatch = reply.match(/\[STEP:(\d)\]/);
+    if (stepMatch) {
+      const newStep = parseInt(stepMatch[1]);
+      if (newStep >= state.currentStep && newStep <= 4) {
+        state.currentStep = newStep;
+        renderPrepSteps(state.currentStep);
+      }
+      reply = reply.replace(/\[STEP:\d\]/, '').trim();
+    }
+
+    state.msgs.push({ role: 'ai', text: reply });
+    appendPrepFreeMsg('ai', reply);
+  } catch(e) {
+    document.getElementById(typingId)?.remove();
+    const err = 'Sorry, something went wrong. Please try again.';
+    state.msgs.push({ role: 'ai', text: err });
+    appendPrepFreeMsg('ai', err);
+  }
+
+  state.working = false;
+  if (sendBtn) {
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
+  }
+  document.getElementById('prep-chat-clear-btn').style.display = '';
+  inp.focus();
+}
 
     // Parse and strip step signal
     const stepMatch = reply.match(/\[STEP:(\d)\]/);
