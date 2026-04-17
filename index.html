@@ -1239,7 +1239,7 @@ function toast(msg, type='') {
 // CLAUDE API
 // ══════════════════════════════════════════
 async function callClaude(prompt, system = '', maxTok = 600) {
-  const apiUrl = '/api/chat-mistral';  // ← ここに「-mistral」を付け足す！
+  const apiUrl = '/api/chat'; 
   const payload = {
     messages: [{ role: 'user', content: prompt }]
   };
@@ -1258,7 +1258,7 @@ async function callClaude(prompt, system = '', maxTok = 600) {
 }
 
 async function claudeChat(history, system, maxTok = 300) {
-  const apiUrl = '/api/chat-mistral';
+  const apiUrl = '/api/chat';
   const payload = {
     messages: history
   };
@@ -1747,110 +1747,29 @@ async function sendPrepFreeChat() {
   const history = cleanMsgs.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
 
   const stepName = ['','Understand','Connect','Give your opinion','Consider another view'][state.currentStep] || 'Understand';
+  const system = `You are a conversational AI tutor helping a student through 4 steps of discussion preparation. You are currently on Step ${state.currentStep}: "${stepName}".
 
-  const system = `
-# ROLE
-You are a warm, supportive AI tutor helping an international student prepare for an English-medium academic discussion. You are currently on Step ${state.currentStep}: "${stepName}".
-
-# MATERIAL CONTEXT
-Title: "${mat?.title || 'Unknown'}"
+Material: "${mat?.title || 'Unknown'}"
 Key concepts: ${concepts || 'none'}
 Content: ${content || 'none'}
 
-# CONTEXT & GROUNDING
-The student has uploaded preparation material. You must ground all evaluations strictly in this material. Never hallucinate facts outside the material. 
-*CRITICAL FEEDBACK RULES:* 1. If a student misses points in Stage 1, you MUST advise them to recheck the material and explicitly specify WHICH chapter, section, or heading they need to look at.
-2. Whenever a student needs to strengthen their reasoning (especially in Stages 3 and 4), explicitly encourage them to use direct quotes or specific references from the material.
+The 4 steps (in order):
+1. Understand — help the student grasp the material and key concepts
+2. Connect — help them relate it to broader ideas or their own experience
+3. Give your opinion — guide them to form a personal stance on the material
+4. Consider another view — help them think about counterarguments or alternative perspectives
 
-# SCORING & BRANCHING LOGIC (VISIBLE EVALUATION)
-For EVERY response from the student, evaluate it and assign a Score. 
-- Stages 1 and 2 are scored out of 2 (0, 1, or 2).
-- Stages 3 and 4 are scored out of 3 (0, 1, 2, or 3).
-CRITICAL: You MUST display the score at the very top of your response exactly like this: **[Score: X/2]** or **[Score: X/3]**. Then, execute the corresponding action.
-
-# PROGRESSION RULE (STRICT MASTERY)
-The student CANNOT advance to the next stage until they achieve the MAXIMUM score (2/2 for Stages 1 and 2, and 3/3 for Stages 3 and 4). 
-If they receive a lower score, you must provide feedback and wait for them to try again. Do not move to the next stage until they get a perfect score.
-
-# EXAMPLES FOR CALIBRATION (Dummy topic: "Banning smartphones")
-- Score 1 (Missing major part): S3 "I agree with banning phones." (No reason). S4 "Parents need to call kids." (Valid, but doesn't challenge the specific S3 reason).
-- Score 2 (Vague/Surface level): S3 "I agree because they are bad for studying." (Has a reason, but lacks specific evidence/depth). S4 "It's good to use phones for emergencies, which breaks the focus." (Challenges S3, but reasoning is weak).
-- Score 3 (Strong Evidence/Logic): S3 "I agree because the article shows phones reduce test scores by 10% due to distraction." (Clear opinion + solid evidence/quote).
-
---- Stage 1: Conceptual Self-Explanation ---
-Goal: Summarise the main ideas of the material accurately.
-- Score 2 (Accurate & Complete): Display **[Score: 2/2]**. Say "✓ Stage 1 complete!". Move to Stage 2.
-- Score 1 (Partial/Missing details): Display **[Score: 1/2]**. Advise them to recheck a specific chapter/section to add the missing details. Wait for their next attempt.
-- Score 0 (Incorrect/Missing): Display **[Score: 0/2]**. Advise them to recheck the material, pointing out the exact chapter/section. Give 1 hint. Wait for their next attempt.
-
---- Stage 2: Connecting to Prior Knowledge ---
-Goal: Connect material to personal experience or prior learning.
-- Score 2 (Clear link & explanation): Display **[Score: 2/2]**. Say "✓ Stage 2 complete!". Move to Stage 3.
-- Score 1 (Vague link only): Display **[Score: 1/2]**. Ask them to elaborate on the connection. Wait for their next attempt.
-- Score 0 (No connection): Display **[Score: 0/2]**. Explain the need for a link. Give 1 hint. Wait for their next attempt.
-
---- Stage 3: Opinion Formation ---
-Goal: State a clear opinion supported by SPECIFIC evidence or strong reasoning.
-- Score 3 (Opinion + Specific Evidence): Display **[Score: 3/3]**. Say "✓ Stage 3 complete!". Move to Stage 4.
-- Score 2 (Opinion + Vague Reason): Display **[Score: 2/3]**. Praise the stance, but explicitly suggest they use a direct quote from the material to make their evidence stronger. Wait for their next attempt.
-- Score 1 (Opinion only): Display **[Score: 1/3]**. Ask "Why do you think so?". Wait for their next attempt.
-- Score 0 (No position): Display **[Score: 0/3]**. Encourage taking a side. Wait for their next attempt.
-
---- Stage 4: Counterargument Consideration ---
-Goal: Identify an opposing view that directly challenges their Stage 3 reason with specific evidence.
-- Score 3 (Direct challenge + Specific Evidence): Display **[Score: 3/3]**. Say "✓ Stage 4 complete! 🎉". Generate Rehearsal Summary.
-- Score 2 (Direct challenge but weak logic): Display **[Score: 2/3]**. Ask them to provide stronger evidence, suggesting they find a quote from the text for the opposing side. Wait for their next attempt.
-- Score 1 (General counter): Display **[Score: 1/3]**. Ask how an opponent would respond to their specific Stage 3 reason. Wait for their next attempt.
-- Score 0 (No counter): Display **[Score: 0/3]**. Explain what a counterargument is. Wait for their next attempt.
-
-# REHEARSAL SUMMARY
-After Stage 4: "You have completed all 4 stages. Here is your Rehearsal Summary — sentences you can use when speaking in class today:"
-Labels: My Summary:, My Connection:, My Opinion:, Counterargument to Consider: (1-2 sentences each).
-
-# DYNAMIC STEP RULES
-- Stay on the CURRENT step (Step ${state.currentStep}: ${stepName}) until the student has engaged meaningfully with it.
+Rules:
+- Stay on the CURRENT step (Step ${state.currentStep}: ${stepName}) until the student has engaged meaningfully with it
 - When you judge the student is ready to move on, end your reply with exactly: [STEP:${Math.min(state.currentStep + 1, 4)}]
 - If you think they should stay on the current step, end with: [STEP:${state.currentStep}]
-
-# FORMAT AND TONE
-- Warm, conversational prose (CEFR B1).
-- Max 3 sentences per response (excluding Score).
-- Total word count under 60 words.
-- No bullet points or lists in conversation.
-`;
+- Never mention the step numbers or names to the student — guide them naturally
+- Keep replies to 2-4 sentences
+- Use **bold** for key terms`;
 
   try {
     let reply = await claudeChat(history, system, 400);
     document.getElementById(typingId)?.remove();
-
-    // Parse and strip step signal
-    const stepMatch = reply.match(/\[STEP:(\d)\]/);
-    if (stepMatch) {
-      const newStep = parseInt(stepMatch[1]);
-      if (newStep >= state.currentStep && newStep <= 4) {
-        state.currentStep = newStep;
-        renderPrepSteps(state.currentStep);
-      }
-      reply = reply.replace(/\[STEP:\d\]/, '').trim();
-    }
-
-    state.msgs.push({ role: 'ai', text: reply });
-    appendPrepFreeMsg('ai', reply);
-  } catch(e) {
-    document.getElementById(typingId)?.remove();
-    const err = 'Sorry, something went wrong. Please try again.';
-    state.msgs.push({ role: 'ai', text: err });
-    appendPrepFreeMsg('ai', err);
-  }
-
-  state.working = false;
-  if (sendBtn) {
-    sendBtn.disabled = false;
-    sendBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
-  }
-  document.getElementById('prep-chat-clear-btn').style.display = '';
-  inp.focus();
-}
 
     // Parse and strip step signal
     const stepMatch = reply.match(/\[STEP:(\d)\]/);
