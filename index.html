@@ -1859,10 +1859,25 @@ async function sendPrepFreeChat() {
   inp.focus();
 }
 
+  function appendPrepFreeMsg(role, text) {
+  const container = document.getElementById('prep-free-chat-msgs');
+  if (!container) return;
+  const isAI = role === 'ai';
+  const div = document.createElement('div');
+  div.style.cssText = `display:flex;gap:10px;${isAI ? '' : 'flex-direction:row-reverse'}`;
+  div.innerHTML = `
+    <div style="width:32px;height:32px;border-radius:50%;background:${isAI ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : 'linear-gradient(135deg,#3b82f6,#06b6d4)'};display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px">${isAI ? '🤖' : 'You'}</div>
+    <div style="max-width:78%;padding:11px 15px;border-radius:${isAI ? '4px 14px 14px 14px' : '14px 4px 14px 14px'};background:${isAI ? 'white' : 'linear-gradient(135deg,#4f46e5,#3b82f6)'};color:${isAI ? 'var(--s700)' : 'white'};font-size:14px;line-height:1.65;border:${isAI ? '1px solid var(--border)' : 'none'}">${text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function clearPrepChat() {
+
 function clearPrepChat() {
   const matId = document.getElementById('prep-material-select').value;
   if (!matId) return;
-  PREP_CHAT_STATES[matId] = { msgs: [], working: false };
+ PREP_CHAT_STATES[matId] = { apiMsgs: [], working: false };
   const d = ud();
   const mat = d.materials.find(m => m.id === matId);
   initPrepFreeChat(matId, mat);
