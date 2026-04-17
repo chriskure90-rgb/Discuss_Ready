@@ -297,8 +297,8 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
     <div class="auth-switch mt-2"><span onclick="showView('landing')">← Back</span></div>
     <div style="margin-top:20px;background:var(--v50);border-radius:10px;padding:14px;font-size:12.5px;color:var(--s600)">
       <div style="font-weight:700;color:var(--v700);margin-bottom:6px">✨ Demo accounts</div>
-      <div style="cursor:pointer;margin-bottom:6px" onclick="document.getElementById('login-email').value='student@demo.com';document.getElementById('login-password').value='demo1234'">🎓 <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="93e0e7e6f7f6fde7d3f7f6fefcbdf0fcfe">[email&#160;protected]</a> / demo1234</div>
-      <div style="cursor:pointer" onclick="document.getElementById('login-email').value='teacher@demo.com';document.getElementById('login-password').value='demo1234'">📋 <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f5819094969d9087b59190989adb969a98">[email&#160;protected]</a> / demo1234</div>
+      <div style="cursor:pointer;margin-bottom:6px" onclick="document.getElementById('login-email').value='student@demo.com';document.getElementById('login-password').value='demo1234'">🎓 student@demo.com / demo1234</div>
+      <div style="cursor:pointer" onclick="document.getElementById('login-email').value='teacher@demo.com';document.getElementById('login-password').value='demo1234'">📋 teacher@demo.com / demo1234</div>
     </div>
   </div></div>
 </div>
@@ -615,7 +615,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             <div id="session-active">
               <!-- ── CHANGE 2: Mic button + editable transcript panel ── -->
               <div class="flex items-center gap-3 flex-wrap">
-                <button class="btn btn-blue btn-lg flex-1" id="mic-btn" onclick="toggleMic()">🎙 Speak</button>
+               <button class="btn btn-blue btn-lg flex-1" id="mic-btn" onclick="toggleMic()" style="justify-content:center">🎙 Speak</button>
                 <button class="btn btn-outline" onclick="moveToNext()" id="next-topic-btn" title="Ask a classmate to move to a new topic">⏭ Next Topic</button>
                 <button class="btn btn-outline" onclick="finishEarly()">End Session</button>
               </div>
@@ -634,7 +634,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                   <span>💡 Fix any speech recognition errors, then click Send.</span>
                 </div>
                 <div class="flex gap-2 mt-3">
-                  <button class="btn btn-blue flex-1" onclick="sendEditedTranscript()">📤 Send</button>
+                  <button class="btn btn-blue flex-1" onclick="sendEditedTranscript()" style="justify-content:center">📤 Send</button>
                   <button class="btn btn-ghost" onclick="cancelEditedTranscript()">✕ Cancel</button>
                 </div>
               </div>
@@ -935,7 +935,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
       <div class="form-group"><label class="label">Content / Notes *</label><textarea id="mat-notes" rows="5" placeholder="Paste key content, summaries, or notes from the reading here. The more you add, the better AI can support you."></textarea></div>
       <div class="form-group" id="mat-share-group" style="display:none"><label class="label">Share to Class</label><select id="mat-share-class"><option value="">Don't share</option></select></div>
       <div style="background:var(--v50);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--v700);margin-bottom:16px">✨ AI will automatically extract key concepts when you open Prep or Phrases.</div>
-      <button class="btn btn-primary w-full" onclick="addMaterial()">Add Material</button>
+      <button class="btn btn-primary w-full" onclick="addMaterial()" style="justify-content:center">Add Material</button>
     </div>
   </div>
 </div>
@@ -996,7 +996,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
 <div id="toast-container"></div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 // ══════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════
@@ -1236,13 +1236,17 @@ function toast(msg, type='') {
 }
 
 // ══════════════════════════════════════════
+// ══════════════════════════════════════════
 // CLAUDE API
 // ══════════════════════════════════════════
 async function callClaude(prompt, system = '', maxTok = 600) {
-  const apiUrl = '/api/chat'; 
+  const apiUrl = '/api/chat';
   const payload = {
+    model:'claude-sonnet-4-5',
+    max_tokens: maxTok,
     messages: [{ role: 'user', content: prompt }]
   };
+  if (system) payload.system = system;
   try {
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -1260,6 +1264,9 @@ async function callClaude(prompt, system = '', maxTok = 600) {
 async function claudeChat(history, system, maxTok = 300) {
   const apiUrl = '/api/chat';
   const payload = {
+    model: 'claude-sonnet-4-5',
+    max_tokens: maxTok,
+    system: system,
     messages: history
   };
   try {
@@ -1274,118 +1281,6 @@ async function claudeChat(history, system, maxTok = 300) {
     console.error('Error:', error);
     return 'Good effort! Can you tell me more?';
   }
-}
-
-  async function callMistralChat(messages) {
-  try {
-    const systemMsg = messages.find(m => m.role === 'system');
-    const chatMsgs  = messages.filter(m => m.role !== 'system');
-
-    const response = await fetch('/api/chat-mistral', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system: systemMsg?.content || '',
-        messages: chatMsgs
-      })
-    });
-
-    const data = await response.json();
-    return data.content?.[0]?.text || '';
-
-  } catch (error) {
-    console.error('Mistral error:', error);
-    return 'Something went wrong. Please try again.';
-  }
-}
-
-  function buildMistralSystemPrompt(mat) {
-  const materialContent = (mat.content || mat.notes || '').substring(0, 4000);
-  return `
-# ROLE
-You are a warm, supportive AI tutor helping an international student prepare for an English-medium academic discussion.
-
-# CONTEXT & GROUNDING
-The student has uploaded the following preparation material. You must ground all evaluations strictly in this material. Never hallucinate facts outside the material.
---- MATERIAL START ---
-Title: ${mat.title}
-Subject: ${mat.subject || 'General'}
-Content: ${materialContent || '(No content provided — ask the student to summarise what they know.)'}
---- MATERIAL END ---
-
-*CRITICAL FEEDBACK RULES:*
-1. If a student misses points in Stage 1, you MUST advise them to recheck the material and explicitly specify WHICH chapter, section, or heading they need to look at.
-2. Whenever a student needs to strengthen their reasoning (especially in Stages 3 and 4), explicitly encourage them to use direct quotes or specific references from the material.
-
-# SCORING & BRANCHING LOGIC (VISIBLE EVALUATION)
-For EVERY response from the student, evaluate it and assign a Score.
-- Stages 1 and 2 are scored out of 2 (0, 1, or 2).
-- Stages 3 and 4 are scored out of 3 (0, 1, 2, or 3).
-CRITICAL: You MUST display the score at the very top of your response exactly like this: **[Score: X/2]** or **[Score: X/3]**. Then, execute the corresponding action.
-
-# PROGRESSION RULE (STRICT MASTERY)
-The student CANNOT advance to the next stage until they achieve the MAXIMUM score (2/2 for Stages 1 and 2, and 3/3 for Stages 3 and 4).
-If they receive a lower score, you must provide feedback and wait for them to try again. Do not move to the next stage until they get a perfect score.
-
---- Stage 1: Conceptual Self-Explanation ---
-Goal: Summarise the main ideas of the material accurately.
-- Score 2: Display **[Score: 2/2]**. Say "✓ Stage 1 complete!". Move to Stage 2.
-- Score 1: Display **[Score: 1/2]**. Advise them to recheck a specific section. Wait.
-- Score 0: Display **[Score: 0/2]**. Point to exact section. Give 1 hint. Wait.
-
---- Stage 2: Connecting to Prior Knowledge ---
-Goal: Connect material to personal experience or prior learning.
-- Score 2: Display **[Score: 2/2]**. Say "✓ Stage 2 complete!". Move to Stage 3.
-- Score 1: Display **[Score: 1/2]**. Ask them to elaborate. Wait.
-- Score 0: Display **[Score: 0/2]**. Explain the need for a link. Give 1 hint. Wait.
-
---- Stage 3: Opinion Formation ---
-Goal: State a clear opinion supported by SPECIFIC evidence.
-- Score 3: Display **[Score: 3/3]**. Say "✓ Stage 3 complete!". Move to Stage 4.
-- Score 2: Display **[Score: 2/3]**. Suggest using a direct quote. Wait.
-- Score 1: Display **[Score: 1/3]**. Ask "Why do you think so?". Wait.
-- Score 0: Display **[Score: 0/3]**. Encourage taking a side. Wait.
-
---- Stage 4: Counterargument Consideration ---
-Goal: Identify an opposing view that directly challenges their Stage 3 reason.
-- Score 3: Display **[Score: 3/3]**. Say "✓ Stage 4 complete! 🎉". Generate Rehearsal Summary.
-- Score 2: Display **[Score: 2/3]**. Ask for stronger evidence. Wait.
-- Score 1: Display **[Score: 1/3]**. Ask how an opponent would respond. Wait.
-- Score 0: Display **[Score: 0/3]**. Explain what a counterargument is. Wait.
-
-# REHEARSAL SUMMARY
-After Stage 4: "You have completed all 4 stages. Here is your Rehearsal Summary:"
-Labels: My Summary:, My Connection:, My Opinion:, Counterargument to Consider: (1-2 sentences each).
-
-# FORMAT AND TONE
-- Warm, conversational prose (CEFR B1).
-- Max 3 sentences per response (excluding Score).
-- Total word count under 60 words.
-- No bullet points or lists in conversation.
-
-# HOW TO START
-Respond EXACTLY with:
-"Welcome! Let's prepare for your class together. We'll work through 4 stages. First you share your idea, then I'll give feedback based on the material to help you improve. Let's start with Stage 1 — Self-Explanation. What are the main points of the preparation material? Please summarise them in your own words."
-  `.trim();
-}
-
-function showPrepTyping(id) {
-  const container = document.getElementById('prep-free-chat-msgs');
-  if (!container) return;
-  const div = document.createElement('div');
-  div.id = id;
-  div.style.cssText = 'display:flex;gap:10px;align-items:center';
-  div.innerHTML = `
-    <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;color:white;font-size:11px">🤖</div>
-    <div class="typing-dots" style="border-radius:4px 14px 14px 14px">
-      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-    </div>`;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-}
-
-function removePrepTyping(id) {
-  document.getElementById(id)?.remove();
 }
   
 // ══════════════════════════════════════════
@@ -1787,79 +1682,30 @@ function renderPrepSteps(currentStep) {
   }
 }
 
-async function initPrepFreeChat(matId, mat) {
-  PREP_CHAT_STATES[matId] = {
-    apiMsgs: [
-      { role: 'system', content: buildMistralSystemPrompt(mat) },
-      { role: 'user',   content: 'Hello! I am ready to start.' }
-    ],
-    working: false
-  };
-
+function initPrepFreeChat(matId, mat) {
+  // Always start fresh when material is loaded/changed
+  PREP_CHAT_STATES[matId] = { msgs: [], working: false, currentStep: 1 };
+  const state = PREP_CHAT_STATES[matId];
+  const welcome = `Welcome! Let's prepare for your class together. We'll work through 4 stages. First you share your idea, then I'll give feedback based on the material to help you improve. Let's start with Stage 1 — Self-Explanation. What are the main points of the preparation material? Please summarise them in your own words.`;
+  state.msgs.push({ role: 'ai', text: welcome });
+  renderPrepSteps(1);
   const container = document.getElementById('prep-free-chat-msgs');
-  if (container) container.innerHTML = '';
-
-  const bar = document.getElementById('prep-progress-bar');
-  if (bar) bar.style.display = 'none';
-  const fillLine = document.getElementById('prep-progress-fill-line');
-  if (fillLine) fillLine.style.display = 'none';
-
-  const state = PREP_CHAT_STATES[matId];
-  state.working = true;
-
-  const typingId = 'pfc-typing-init';
-  showPrepTyping(typingId);
-
-  const welcome = await callMistralChat(state.apiMsgs);
-  removePrepTyping(typingId);
-
-  if (welcome) {
-    state.apiMsgs.push({ role: 'assistant', content: welcome });
-    appendPrepFreeMsg('ai', welcome);
-  }
-  state.working = false;
+  if(container) container.innerHTML = '';
+  appendPrepFreeMsg('ai', welcome);
+  const clearBtn = document.getElementById('prep-chat-clear-btn');
+  if (clearBtn) clearBtn.style.display = 'none';
 }
 
-async function sendPrepFreeChat() {
-  const matId = document.getElementById('prep-material-select').value;
-  if (!matId) { toast('Please select a material first', 'error'); return; }
-
-  const inp = document.getElementById('prep-free-chat-input');
-  const text = inp.value.trim();
-  if (!text) return;
-
+function renderPrepFreeChatMsgs(matId) {
+  const container = document.getElementById('prep-free-chat-msgs');
+  if (!container) return;
   const state = PREP_CHAT_STATES[matId];
-  if (!state || state.working) return;
-
-  inp.value = '';
-  state.working = true;
-
-  appendPrepFreeMsg('user', text);
-  state.apiMsgs.push({ role: 'user', content: text });
-
-  const sendBtn = document.getElementById('prep-free-chat-send');
-  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '…'; }
-
-  const typingId = 'pfc-typing-' + Date.now();
-  showPrepTyping(typingId);
-
-  const reply = await callMistralChat(state.apiMsgs);
-  removePrepTyping(typingId);
-
-  if (reply) {
-    state.apiMsgs.push({ role: 'assistant', content: reply });
-    appendPrepFreeMsg('ai', reply);
-  }
-
-  state.working = false;
-  if (sendBtn) {
-    sendBtn.disabled = false;
-    sendBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
-  }
-  inp.focus();
+  if (!state) return;
+  container.innerHTML = '';
+  state.msgs.forEach(m => appendPrepFreeMsg(m.role, m.text));
 }
 
-  function appendPrepFreeMsg(role, text) {
+function appendPrepFreeMsg(role, text) {
   const container = document.getElementById('prep-free-chat-msgs');
   if (!container) return;
   const isAI = role === 'ai';
@@ -1867,21 +1713,163 @@ async function sendPrepFreeChat() {
   div.style.cssText = `display:flex;gap:10px;${isAI ? '' : 'flex-direction:row-reverse'}`;
   div.innerHTML = `
     <div style="width:32px;height:32px;border-radius:50%;background:${isAI ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : 'linear-gradient(135deg,#3b82f6,#06b6d4)'};display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px">${isAI ? '🤖' : 'You'}</div>
-    <div style="max-width:78%;padding:11px 15px;border-radius:${isAI ? '4px 14px 14px 14px' : '14px 4px 14px 14px'};background:${isAI ? 'white' : 'linear-gradient(135deg,#4f46e5,#3b82f6)'};color:${isAI ? 'var(--s700)' : 'white'};font-size:14px;line-height:1.65;border:${isAI ? '1px solid var(--border)' : 'none'}">${text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</div>`;
+    <div style="max-width:78%;padding:11px 15px;border-radius:${isAI ? '4px 14px 14px 14px' : '14px 4px 14px 14px'};background:${isAI ? 'white' : 'linear-gradient(135deg,#4f46e5,#3b82f6)'};color:${isAI ? 'var(--s700)' : 'white'};font-size:14px;line-height:1.65;border:${isAI ? '1px solid var(--border)' : 'none'};box-shadow:0 2px 8px rgba(0,0,0,.06)">${text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</div>`;
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
 
-function clearPrepChat() {
+async function sendPrepFreeChat() {
+  const matId = document.getElementById('prep-material-select').value;
+  if (!matId) { toast('Please select a material first', 'error'); return; }
+  const inp = document.getElementById('prep-free-chat-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  const state = PREP_CHAT_STATES[matId];
+  if (!state || state.working) return;
+
+  inp.value = '';
+  inp.style.height = 'auto';
+  state.msgs.push({ role: 'user', text });
+  appendPrepFreeMsg('user', text);
+  state.working = true;
+
+  const sendBtn = document.getElementById('prep-free-chat-send');
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '…'; }
+
+  // Typing indicator
+  const typingId = 'pfc-typing-' + Date.now();
+  const typingDiv = document.createElement('div');
+  typingDiv.id = typingId;
+  typingDiv.style.cssText = 'display:flex;gap:10px;align-items:center';
+  typingDiv.innerHTML = `<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;color:white;font-size:11px">🤖</div><div class="typing-dots" style="border-radius:4px 14px 14px 14px"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  const container = document.getElementById('prep-free-chat-msgs');
+  container.appendChild(typingDiv);
+  container.scrollTop = container.scrollHeight;
+
+  const d = ud();
+  const mat = d.materials.find(m => m.id === matId);
+  const concepts = (mat?.ai_concepts || []).map(c => typeof c === 'string' ? c : c.concept).join(', ');
+  const content = (mat?.content || mat?.notes || '').substring(0, 3000);
+
+  // Strip any AI messages that contain stage-based language before sending history
+  const stagePattern = /stage\s*\d|step\s*\d|prior knowledge|self.expla|explain.*back|in your own words/i;
+  const cleanMsgs = state.msgs.filter(m => !(m.role === 'ai' && stagePattern.test(m.text)));
+  const history = cleanMsgs.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
+
+  const system = `# ROLE
+You are a warm, supportive AI tutor helping an international student prepare for an English-medium academic discussion.
+
+# CONTEXT & GROUNDING
+The student has uploaded the following preparation material. You must ground all evaluations strictly in this material. Never hallucinate facts outside the material.
+--- MATERIAL START ---
+Title: ${mat?.title || ''}
+Subject: ${mat?.subject || 'General'}
+Content: ${content}
+Key Concepts: ${concepts}
+--- MATERIAL END ---
+
+*CRITICAL FEEDBACK RULES:*
+1. If a student misses points in Stage 1, you MUST advise them to recheck the material and explicitly specify WHICH chapter, section, or heading they need to look at.
+2. Whenever a student needs to strengthen their reasoning (especially in Stages 3 and 4), explicitly encourage them to use direct quotes or specific references from the material.
+
+# SCORING & BRANCHING LOGIC (VISIBLE EVALUATION)
+For EVERY response from the student, evaluate it and assign a Score.
+- Stages 1 and 2 are scored out of 2 (0, 1, or 2).
+- Stages 3 and 4 are scored out of 3 (0, 1, 2, or 3).
+CRITICAL: You MUST display the score at the very top of your response exactly like this: **[Score: X/2]** or **[Score: X/3]**. Then, execute the corresponding action.
+
+# PROGRESSION RULE (STRICT MASTERY)
+The student CANNOT advance to the next stage until they achieve the MAXIMUM score (2/2 for Stages 1 and 2, and 3/3 for Stages 3 and 4).
+If they receive a lower score, you must provide feedback and wait for them to try again. Do not move to the next stage until they get a perfect score.
+
+# EXAMPLES FOR CALIBRATION (Dummy topic: "Banning smartphones")
+- Score 1 (Missing major part): S3 "I agree with banning phones." (No reason). S4 "Parents need to call kids." (Valid, but doesn't challenge the specific S3 reason).
+- Score 2 (Vague/Surface level): S3 "I agree because they are bad for studying." (Has a reason, but lacks specific evidence/depth). S4 "It's good to use phones for emergencies, which breaks the focus." (Challenges S3, but reasoning is weak).
+- Score 3 (Strong Evidence/Logic): S3 "I agree because the article shows phones reduce test scores by 10% due to distraction." (Clear opinion + solid evidence/quote).
+
+--- Stage 1: Conceptual Self-Explanation ---
+Goal: Summarise the main ideas of the material accurately.
+- Score 2 (Accurate & Complete): Display **[Score: 2/2]**. Say "✓ Stage 1 complete!". Move to Stage 2. Append [STEP:2] at the very end.
+- Score 1 (Partial/Missing details): Display **[Score: 1/2]**. Advise them to recheck a specific chapter/section. Wait. Append [STEP:1] at the very end.
+- Score 0 (Incorrect/Missing): Display **[Score: 0/2]**. Point to exact section. Give 1 hint. Wait. Append [STEP:1] at the very end.
+
+--- Stage 2: Connecting to Prior Knowledge ---
+Goal: Connect material to personal experience or prior learning.
+- Score 2 (Clear link & explanation): Display **[Score: 2/2]**. Say "✓ Stage 2 complete!". Move to Stage 3. Append [STEP:3] at the very end.
+- Score 1 (Vague link only): Display **[Score: 1/2]**. Ask them to elaborate. Wait. Append [STEP:2] at the very end.
+- Score 0 (No connection): Display **[Score: 0/2]**. Explain the need for a link. Give 1 hint. Wait. Append [STEP:2] at the very end.
+
+--- Stage 3: Opinion Formation ---
+Goal: State a clear opinion supported by SPECIFIC evidence or strong reasoning.
+- Score 3 (Opinion + Specific Evidence): Display **[Score: 3/3]**. Say "✓ Stage 3 complete!". Move to Stage 4. Append [STEP:4] at the very end.
+- Score 2 (Opinion + Vague Reason): Display **[Score: 2/3]**. Suggest using a direct quote. Wait. Append [STEP:3] at the very end.
+- Score 1 (Opinion only): Display **[Score: 1/3]**. Ask "Why do you think so?". Wait. Append [STEP:3] at the very end.
+- Score 0 (No position): Display **[Score: 0/3]**. Encourage taking a side. Wait. Append [STEP:3] at the very end.
+
+--- Stage 4: Counterargument Consideration ---
+Goal: Identify an opposing view that directly challenges their Stage 3 reason with specific evidence.
+- Score 3 (Direct challenge + Specific Evidence): Display **[Score: 3/3]**. Say "✓ Stage 4 complete! 🎉". Generate Rehearsal Summary. Append [STEP:4] at the very end.
+- Score 2 (Direct challenge but weak logic): Display **[Score: 2/3]**. Ask for stronger evidence. Wait. Append [STEP:4] at the very end.
+- Score 1 (General counter): Display **[Score: 1/3]**. Ask how an opponent would respond to their specific Stage 3 reason. Wait. Append [STEP:4] at the very end.
+- Score 0 (No counter): Display **[Score: 0/3]**. Explain what a counterargument is. Wait. Append [STEP:4] at the very end.
+
+# REHEARSAL SUMMARY
+After Stage 4 complete: "You have completed all 4 stages. Here is your Rehearsal Summary — sentences you can use when speaking in class today:"
+Labels: My Summary:, My Connection:, My Opinion:, Counterargument to Consider: (1-2 sentences each).
+
+# FORMAT AND TONE
+- Warm, conversational prose (CEFR B1).
+- Max 3 sentences per response (excluding Score).
+- Total word count under 60 words.
+- No bullet points or lists in conversation.
+
+# CURRENT STAGE
+You are currently on Stage ${state.currentStep}. ONLY evaluate for Stage ${state.currentStep}.
+NEVER forget to append the [STEP:X] signal at the very end of every response.`;
+
+  try {
+    document.getElementById(typingId)?.remove();
+    let reply = await claudeChat(history, system, 600);
+
+    // Parse and strip step signal
+    const stepMatch = reply.match(/\[STEP:(\d)\]/);
+    if (stepMatch) {
+      const newStep = parseInt(stepMatch[1]);
+      if (newStep > state.currentStep && newStep <= 4) {
+        state.currentStep = newStep;
+        renderPrepSteps(state.currentStep);
+      }
+      reply = reply.replace(/\[STEP:\d\]/, '').trim();
+    }
+
+    state.msgs.push({ role: 'ai', text: reply });
+    appendPrepFreeMsg('ai', reply);
+  } catch(e) {
+    document.getElementById(typingId)?.remove();
+    const err = 'Sorry, something went wrong. Please try again.';
+    state.msgs.push({ role: 'ai', text: err });
+    appendPrepFreeMsg('ai', err);
+  }
+
+  state.working = false;
+  if (sendBtn) {
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
+  }
+  const clearBtn2 = document.getElementById('prep-chat-clear-btn');
+  if (clearBtn2) clearBtn2.style.display = '';
+  if (inp) inp.focus();
+}
 
 function clearPrepChat() {
   const matId = document.getElementById('prep-material-select').value;
   if (!matId) return;
- PREP_CHAT_STATES[matId] = { apiMsgs: [], working: false };
+  PREP_CHAT_STATES[matId] = { msgs: [], working: false };
   const d = ud();
   const mat = d.materials.find(m => m.id === matId);
   initPrepFreeChat(matId, mat);
-  document.getElementById('prep-chat-clear-btn').style.display = 'none';
+  const cb = document.getElementById('prep-chat-clear-btn');
+  if (cb) cb.style.display = 'none';
 }
 
 // ══════════════════════════════════════════
@@ -2229,15 +2217,8 @@ async function sendEditedTranscript() {
   liveTranscript = '';
   // Post to chat and get AI response
   addUserMsg(text);
-  const interp = await interpretSpeech(text);
-  if (interp.toLowerCase().trim() !== text.toLowerCase().trim()) {
-    const n = document.createElement('div');
-    n.style.cssText = 'display:flex;justify-content:flex-end;margin-top:-6px;margin-bottom:4px';
-    n.innerHTML = `<div style="max-width:70%;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:5px 10px;font-size:11.5px;color:#92400e">🔧 Interpreted: "${interp}"</div>`;
-    document.getElementById('chat-area').appendChild(n);
-    scrollChat();
-  }
-  aiRespond(interp);
+
+  aiRespond(text);
 }
 
 function cancelEditedTranscript() {
@@ -2259,7 +2240,7 @@ function resetMicUI() {
   const b = document.getElementById('mic-btn');
   if (b) { b.className = 'btn btn-blue btn-lg flex-1'; b.textContent = '🎙 Speak'; }
 }
-function addUserMsg(text){const chat=document.getElementById('chat-area');const d=document.createElement('div');d.className='msg user';d.innerHTML=`<div class="msg-avatar user">You</div><div><div style="font-size:11.5px;color:var(--s400);margin-bottom:5px;text-align:right">You</div><div class="msg-bubble user">${text}</div></div>`;chat.appendChild(d);scrollChat();}
+function addUserMsg(text){const chat=document.getElementById('chat-area');const d=document.createElement('div');d.className='msg user';d.innerHTML=`<div class="msg-avatar user">You</div><div style="display:flex;flex-direction:column;align-items:flex-end"><div style="font-size:11.5px;color:var(--s400);margin-bottom:5px;text-align:right">You</div><div class="msg-bubble user">${text}</div></div>`;chat.appendChild(d);scrollChat();}
 function scrollChat(){const c=document.getElementById('chat-area');if(c)c.scrollTop=c.scrollHeight;}
 function updateTimer(){const m=String(Math.floor(rehearsalTimeLeft/60)).padStart(2,'0'),s=String(rehearsalTimeLeft%60).padStart(2,'0');const el=document.getElementById('session-timer');if(el){el.textContent=`${m}:${s}`;el.className='timer-badge '+(rehearsalTimeLeft<=60?'timer-urgent':'timer-normal');}}
 function endSession(){clearInterval(rehearsalTimer);window.speechSynthesis?.cancel();document.getElementById('session-active').classList.add('hidden');document.getElementById('session-done').classList.remove('hidden');toast('Session complete!','success');const d=ud();const mid=document.getElementById('rehearsal-material-select').value;if(mid){let p=d.preparations.find(x=>x.material_id===mid);if(!p){p={id:'prep'+Date.now(),material_id:mid,concept_explanations:[],discussion_position:'',rehearsal_completed:false};d.preparations.push(p);}p.rehearsal_completed=true;}}
@@ -2281,7 +2262,7 @@ function createAIBubble(classmate,text,msgId){
         <svg width="14" height="14" viewBox="0 0 24 24" fill="${classmate.color}" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       </div>
       <div class="audio-waveform" id="wave-${msgId}">${makeWaveBars()}</div>
-      <span class="audio-duration" id="dur-${msgId}">▶ Listen</span>
+      <span class="audio-duration" id="dur-${msgId}"></span>
     </div>
     <button class="reveal-text-btn" onclick="revealText('${msgId}')">👁 View text</button>
     <div class="revealed-text hidden" id="rtext-${msgId}">${text}</div>
@@ -2291,44 +2272,61 @@ function createAIBubble(classmate,text,msgId){
   let _ttsUserCancelled = false;
   function togglePlay(msgId,text){
   const g=msgGenderMap[msgId]||'m';
-  const card=document.getElementById('apc-'+msgId),dur=document.getElementById('dur-'+msgId);
+  const card=document.getElementById('apc-'+msgId);
+  const dur=document.getElementById('dur-'+msgId);
   const bars=document.querySelectorAll('#wave-'+msgId+' .wave-bar');
   const pbtn=document.getElementById('pbtn-'+msgId);
   const col=pbtn?.querySelector('svg')?.getAttribute('fill')||'#7c3aed';
   const playI=`<svg width="14" height="14" viewBox="0 0 24 24" fill="${col}" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
-  const pauseI=`<svg width="14" height="14" viewBox="0 0 24 24" fill="${col}" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+  const stopI=`<svg width="14" height="14" viewBox="0 0 24 24" fill="${col}" stroke="none"><rect x="4" y="4" width="16" height="16"/></svg>`;
+
   if(currentlyPlayingId===msgId){
-    _ttsUserCancelled = true;
+    _ttsUserCancelled=true;
     window.speechSynthesis.cancel();
+    window.speechSynthesis.cancel();
+    if(window._currentUtterance){
+      window._currentUtterance.onend=null;
+      window._currentUtterance.onerror=null;
+      window._currentUtterance=null;
+    }
     clearInterval(playIntervals[msgId]);
+    bars.forEach(b=>b.classList.remove('active'));
     card?.classList.remove('playing');
     if(pbtn)pbtn.innerHTML=playI;
-    if(dur)dur.textContent='▶ Listen';
-    currentlyPlayingId=null;return;
-  }
+    if(dur)dur.textContent='';
+    currentlyPlayingId=null;
+    return;
+}
+
   if(currentlyPlayingId){
+    _ttsUserCancelled=true;
     window.speechSynthesis.cancel();
+    if(window._currentUtterance){window._currentUtterance.onend=null;window._currentUtterance=null;}
     clearInterval(playIntervals[currentlyPlayingId]);
     document.querySelectorAll('#wave-'+currentlyPlayingId+' .wave-bar').forEach(b=>b.classList.remove('active'));
     document.getElementById('apc-'+currentlyPlayingId)?.classList.remove('playing');
     const oldDur=document.getElementById('dur-'+currentlyPlayingId);
-    if(oldDur)oldDur.textContent='▶ Listen';
+    if(oldDur)oldDur.textContent='';
     const oldPbtn=document.getElementById('pbtn-'+currentlyPlayingId);
     if(oldPbtn){const oc=oldPbtn.querySelector('svg')?.getAttribute('fill')||'#7c3aed';oldPbtn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="${oc}" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;}
     currentlyPlayingId=null;
   }
+
+  _ttsUserCancelled=false;
   currentlyPlayingId=msgId;
   card?.classList.add('playing');
-  if(pbtn)pbtn.innerHTML=pauseI;
-  if(dur)dur.textContent='⏸ Playing…';
+  if(pbtn)pbtn.innerHTML=stopI;
+  if(dur)dur.textContent='';
   playIntervals[msgId]=setInterval(()=>bars.forEach(b=>b.classList.toggle('active',Math.random()>.5)),120);
-  ensureVoicesReady(()=>speakText(text,g,()=>{
+
+    _ttsUserCancelled = false;
+    ensureVoicesReady(()=>speakText(text,g,()=>{
     clearInterval(playIntervals[msgId]);
     bars.forEach(b=>b.classList.remove('active'));
     if(currentlyPlayingId===msgId){
       card?.classList.remove('playing');
       if(pbtn)pbtn.innerHTML=playI;
-      if(dur)dur.textContent='▶ Listen';
+      if(dur)dur.textContent='';
       currentlyPlayingId=null;
     }
   }));
@@ -2338,46 +2336,37 @@ function revealText(msgId){document.getElementById('rtext-'+msgId)?.classList.to
 // ── CHANGE 3: Gender-aware TTS with expanded voice matching ──
 function speakText(text, gender, onEnd) {
   if (!window.speechSynthesis) { if (onEnd) onEnd(); return; }
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'en-US';
-  u.rate = 0.95;
-
-  const vs = window.speechSynthesis.getVoices();
-  if (vs.length) {
-    // Filter to English voices only
-    const enVoices = vs.filter(v => v.lang.startsWith('en'));
-
-    if (gender === 'f') {
-      // Try common female voice names across browsers/OS
-      const femalePatterns = /female|woman|zira|samantha|victoria|kate|karen|moira|fiona|veena|tessa|amelie|alice|allison|ava|evelyn|sarah|susan|lisa|emily|emma|natasha|serena|linda|olivia|chloe|claire|julia|anna|hannah/i;
-      const femaleVoice = enVoices.find(v => femalePatterns.test(v.name));
-      if (femaleVoice) {
-        u.voice = femaleVoice;
-      } else {
-        // Heuristic fallback: on many systems, index 1 or higher-indexed voices tend to be female
-        const fallback = enVoices.find(v => v.name.toLowerCase().includes('google') && !v.name.toLowerCase().includes('male'))
-          || enVoices[Math.min(1, enVoices.length - 1)];
-        if (fallback) u.voice = fallback;
-      }
-      u.pitch = 1.15; // slightly higher pitch for female voices
-    } else {
-      // Male voice patterns
-      const malePatterns = /male|man|daniel|alex|fred|jorge|lee|rishi|oliver|david|james|bruce|albert|tom|thomas|paul|george|mark|mike|michael|aaron|ryan|eric|ralph|reed|rocko|sandy|luca/i;
-      const maleVoice = enVoices.find(v => malePatterns.test(v.name));
-      if (maleVoice) {
-        u.voice = maleVoice;
-      } else {
-        // Fallback: index 0 tends to be male on most platforms
-        const fallback = enVoices[0];
-        if (fallback) u.voice = fallback;
-      }
-      u.pitch = 0.9; // slightly lower pitch for male voices
-    }
-  }
-
-  u.onend = () => { if (!_ttsUserCancelled && onEnd) onEnd(); _ttsUserCancelled = false; };
   window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(u);
+  setTimeout(() => {
+    if (_ttsUserCancelled) { _ttsUserCancelled = false; return; }
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US';
+    u.rate = 0.95;
+    const vs = window.speechSynthesis.getVoices();
+    if (vs.length) {
+      const enVoices = vs.filter(v => v.lang.startsWith('en'));
+      if (gender === 'f') {
+        const femalePatterns = /female|woman|zira|samantha|victoria|kate|karen|moira|fiona|veena|tessa|alice|allison|ava|sarah|susan|lisa|emily|emma|serena|linda|olivia|chloe|claire|julia|anna|hannah/i;
+        u.voice = enVoices.find(v => femalePatterns.test(v.name)) || enVoices[Math.min(1, enVoices.length-1)];
+        u.pitch = 1.15;
+      } else {
+        const malePatterns = /male|man|daniel|alex|fred|jorge|lee|oliver|david|james|bruce|albert|tom|thomas|paul|george|mark|mike|michael/i;
+        u.voice = enVoices.find(v => malePatterns.test(v.name)) || enVoices[0];
+        u.pitch = 0.9;
+      }
+    }
+    window._currentUtterance = u;
+    u.onend = () => {
+      if (!_ttsUserCancelled && onEnd) onEnd();
+      _ttsUserCancelled = false;
+      window._currentUtterance = null;
+    };
+    u.onerror = () => {
+      _ttsUserCancelled = false;
+      window._currentUtterance = null;
+    };
+    window.speechSynthesis.speak(u);
+  }, 150);
 }
 
 // ══════════════════════════════════════════
@@ -3183,6 +3172,23 @@ function drHighlight(id,col){const s=window['_dr_'+id][col];const el=document.ge
 function drRefreshPreview(id){const st=window['_dr_'+id];const el=document.getElementById(id+'-preview');if(el)el.textContent=`${st.d.items[st.d.idx]} / ${st.m.items[st.m.idx]} / ${(st.y.items[st.y.idx]||'').slice(2)}`;}
 function drToggle(id){const popup=document.getElementById(id+'-popup');const trigger=document.getElementById(id+'-trigger');const opening=popup.hidden;document.querySelectorAll('.dr-popup:not([hidden])').forEach(p=>p.hidden=true);document.querySelectorAll('.dr-trigger.active').forEach(t=>t.classList.remove('active'));if(opening){if(!window['_dr_'+id])drInit(id);popup.hidden=false;trigger.classList.add('active');const rect=trigger.getBoundingClientRect();popup.style.left=rect.left+'px';popup.style.top=(rect.bottom+6)+'px';popup.style.width=Math.max(rect.width,280)+'px';const st=window['_dr_'+id];['d','m','y'].forEach(c=>{const el=document.getElementById(id+'-'+c);if(el){el.scrollTop=st[c].idx*DR_IH;drHighlight(id,c);}});drRefreshPreview(id);}}
 function drConfirm(id,hiddenId){const st=window['_dr_'+id];['d','m','y'].forEach(c=>{const el=document.getElementById(id+'-'+c);if(el)st[c].idx=Math.max(0,Math.min(st[c].items.length-1,Math.round(el.scrollTop/DR_IH)));});const dd=st.d.items[st.d.idx];const mm=String(DR_MONTHS.indexOf(st.m.items[st.m.idx])+1).padStart(2,'0');const yyyy=st.y.items[st.y.idx];const hel=document.getElementById(hiddenId);if(hel)hel.value=`${yyyy}-${mm}-${dd}`;const del=document.getElementById(id+'-display');if(del)del.textContent=`${dd} / ${st.m.items[st.m.idx]} / ${yyyy.slice(2)}`;const tel=document.getElementById(id+'-trigger');if(tel){tel.classList.add('has-value');tel.classList.remove('active');}document.getElementById(id+'-popup').hidden=true;}
+
+// ══════════════════════════════════════════
+// UTILITY FUNCTIONS
+// ══════════════════════════════════════════
+function formatDate(str) {
+  if (!str) return '';
+  try {
+    const d = new Date(str);
+    if (isNaN(d)) return str;
+    return d.toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'});
+  } catch(e) { return str; }
+}
+
+function toggleMySavedPhrases() {
+  const panel = document.getElementById('phrase-panel');
+  if (panel) panel.scrollIntoView({ behavior: 'smooth' });
+}
 </script>
 </body>
 </html>
