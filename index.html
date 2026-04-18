@@ -592,7 +592,12 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             </div>
 
             <!-- Messages area -->
-            <div id="prep-free-chat-msgs" style="display:flex;flex-direction:column;gap:14px;height:480px;overflow-y:auto;padding:20px;background:var(--s50)"></div>
+            <div id="prep-free-chat-msgs" style="display:flex;flex-direction:column;gap:14px;height:320px;overflow-y:auto;padding:20px;background:var(--s50)"></div>
+
+            <!-- Current stage indicator -->
+            <div id="prep-stage-indicator" style="padding:8px 16px;background:var(--v50);border-top:1px solid var(--v200);display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:10px" id="prep-stage-steps-row"></div>
+            </div>
 
             <!-- Input area -->
             <div style="padding:14px 16px;border-top:1px solid var(--border);background:white;border-radius:0 0 var(--rad) var(--rad)">
@@ -1711,30 +1716,47 @@ const PREP_STEPS = [
 ];
 
 function renderPrepSteps(currentStep) {
+  // ── ヘッダーのプログレスバー ──
   const bar = document.getElementById('prep-progress-bar');
-  if (!bar) return;
-  // Clear old step nodes (keep the connector lines which are first 2 children)
-  const nodes = bar.querySelectorAll('.prep-step');
-  nodes.forEach(n => n.remove());
+  if (bar) {
+    const nodes = bar.querySelectorAll('.prep-step');
+    nodes.forEach(n => n.remove());
+    PREP_STEPS.forEach((s, i) => {
+      const isDone   = s.num < currentStep;
+      const isActive = s.num === currentStep;
+      const div = document.createElement('div');
+      div.className = 'prep-step';
+      div.innerHTML = `
+        <div class="prep-step-node ${isActive ? 'active' : isDone ? 'done' : ''}">
+          ${isDone ? '✓' : s.icon}
+        </div>
+        <div class="prep-step-label ${isActive ? 'active' : isDone ? 'done' : ''}">${s.label}</div>`;
+      bar.appendChild(div);
+    });
+    const fillLine = document.getElementById('prep-progress-fill-line');
+    if (fillLine) {
+      const pct = currentStep <= 1 ? 0 : ((currentStep - 1) / (PREP_STEPS.length - 1)) * 100;
+      fillLine.style.width = pct + '%';
+    }
+  }
 
-  PREP_STEPS.forEach((s, i) => {
-    const isDone   = s.num < currentStep;
-    const isActive = s.num === currentStep;
-    const div = document.createElement('div');
-    div.className = 'prep-step';
-    div.innerHTML = `
-      <div class="prep-step-node ${isActive ? 'active' : isDone ? 'done' : ''}">
-        ${isDone ? '✓' : s.icon}
-      </div>
-      <div class="prep-step-label ${isActive ? 'active' : isDone ? 'done' : ''}">${s.label}</div>`;
-    bar.appendChild(div);
-  });
-
-  // Update fill line width
-  const fillLine = document.getElementById('prep-progress-fill-line');
-  if (fillLine) {
-    const pct = currentStep <= 1 ? 0 : ((currentStep - 1) / (PREP_STEPS.length - 1)) * 100;
-    fillLine.style.width = `calc(${pct}% - ${pct > 0 ? 0 : 0}px)`;
+  // ── 入力欄上のステージインジケーター ──
+  const row = document.getElementById('prep-stage-steps-row');
+  if (row) {
+    row.innerHTML = PREP_STEPS.map(s => {
+      const isDone   = s.num < currentStep;
+      const isActive = s.num === currentStep;
+      const bg    = isDone   ? 'var(--v600)' : isActive ? 'var(--v500)' : 'var(--s200)';
+      const color = (isDone || isActive) ? 'white' : 'var(--s500)';
+      const fw    = isActive ? '800' : '600';
+      return `<div style="display:flex;align-items:center;gap:5px">
+        <div style="width:22px;height:22px;border-radius:50%;background:${bg};color:${color};font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          ${isDone ? '✓' : s.num}
+        </div>
+        <span style="font-size:11.5px;font-weight:${fw};color:${isActive ? 'var(--v700)' : isDone ? 'var(--v500)' : 'var(--s400)'};white-space:nowrap">${s.label}</span>
+        ${s.num < 4 ? '<span style="color:var(--s300);font-size:11px;margin:0 2px">›</span>' : ''}
+      </div>`;
+    }).join('');
   }
 }
 
