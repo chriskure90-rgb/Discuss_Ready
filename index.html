@@ -1236,51 +1236,14 @@ function toast(msg, type='') {
 }
 
 // ══════════════════════════════════════════
+// API — 全てMistralを使用
 // ══════════════════════════════════════════
-// CLAUDE API
-// ══════════════════════════════════════════
+// 旧関数名はそのまま残してMistralへ転送（互換性維持）
 async function callClaude(prompt, system = '', maxTok = 600) {
-  const apiUrl = '/api/chat';
-  const payload = {
-    model:'claude-sonnet-4-5',
-    max_tokens: maxTok,
-    messages: [{ role: 'user', content: prompt }]
-  };
-  if (system) payload.system = system;
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await response.json();
-    return data.content?.[0]?.text || '';
-  } catch (error) {
-    console.error('Error:', error);
-    return '';
-  }
+  return callMistral(prompt, system, maxTok);
 }
-
 async function claudeChat(history, system, maxTok = 300) {
-  const apiUrl = '/api/chat';
-  const payload = {
-    model: 'claude-sonnet-4-5',
-    max_tokens: maxTok,
-    system: system,
-    messages: history
-  };
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await response.json();
-    return data.content?.[0]?.text || 'Good effort! Can you tell me more?';
-  } catch (error) {
-    console.error('Error:', error);
-    return 'Good effort! Can you tell me more?';
-  }
+  return mistralChat(history, system, maxTok);
 }
   
 // ══════════════════════════════════════════
