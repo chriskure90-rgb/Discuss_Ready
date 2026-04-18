@@ -1284,6 +1284,42 @@ async function claudeChat(history, system, maxTok = 300) {
 }
   
 // ══════════════════════════════════════════
+// MISTRAL API (Pre-Class Prep)
+// ══════════════════════════════════════════
+async function mistralChat(history, system, maxTok = 600) {
+  try {
+    const response = await fetch('/api/chat-mistral', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system: system || '', messages: history })
+    });
+    const data = await response.json();
+    return data.content?.[0]?.text || 'Good effort! Can you tell me more?';
+  } catch (error) {
+    console.error('Mistral error:', error);
+    return 'Good effort! Can you tell me more?';
+  }
+}
+
+async function callMistral(prompt, system = '', maxTok = 600) {
+  try {
+    const response = await fetch('/api/chat-mistral', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system: system || '',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    return data.content?.[0]?.text || '';
+  } catch (error) {
+    console.error('Mistral error:', error);
+    return '';
+  }
+}
+
+// ══════════════════════════════════════════
 // MATERIALS
 // ══════════════════════════════════════════
 let pendingFile = null;
@@ -1448,7 +1484,7 @@ async function extractConcepts(mat) {
   console.log('DEBUG mat:', JSON.stringify({id: mat.id, title: mat.title, notesLen: (mat.notes||'').length, contentLen: (mat.content||'').length}));
   if (!content || content === mat.title) return [];
   try {
-    const raw = await callClaude(
+    const raw = await callMistral(
       `You are an academic reading assistant. Read this material carefully and extract 4-6 key concepts that are SPECIFIC to this text.\n\nTitle: ${mat.title}\nContent: ${content}\n\nReturn ONLY a valid JSON array with no markdown fences, no preamble:\n[{"concept":"Exact term from the text","definition":"1-2 sentence plain English definition based on the text","why_important":"1 sentence on why this concept matters for discussion of THIS material"}]\n\nOnly extract concepts actually present in the text above. Do not invent generic concepts.`,
       'Return only valid JSON array. No markdown, no explanation.', 1200
     );
@@ -1490,7 +1526,7 @@ async function sendSummaryMsg(matId) {
   const d = ud(); const mat = d.materials.find(m => m.id===matId) || {};
   const tid = 'stid'+Date.now(); showTyping('smsgs-'+matId, tid);
   const hist = state.summaryMsgs.map(m => ({role:m.role==='ai'?'assistant':'user', content:m.text}));
-  const r = await claudeChat(hist, `You support international students summarising this material:\nTitle: ${mat.title}\nContent: ${(mat.content||mat.notes||'').substring(0,1500)}\n\nGive 1-2 sentence feedback, one encouragement, and ONE follow-up question. Under 80 words. Friendly, no bullets.`);
+  const r = await mistralChat(hist, `You support international students summarising this material:\nTitle: ${mat.title}\nContent: ${(mat.content||mat.notes||'').substring(0,1500)}\n\nGive 1-2 sentence feedback, one encouragement, and ONE follow-up question. Under 80 words. Friendly, no bullets.`);
   removeTyping('smsgs-'+matId); appendAIMsg('smsgs-'+matId, 'ai', r);
   state.summaryMsgs.push({role:'ai', text:r});
   state._summaryWorking = false;
@@ -1590,7 +1626,7 @@ async function sendConceptMsg(idx, matId) {
   const d = ud(); const mat = d.materials.find(m=>m.id===matId); const c = mat?.ai_concepts?.[idx];
   const tid = 'ctid'+Date.now(); showTyping(`cmsgs-${idx}-${matId}`, tid);
   const hist = state.msgs.map(m => ({role:m.role==='ai'?'assistant':'user', content:m.text}));
-  const r = await claudeChat(hist, `Help student understand "${c?.concept}" from: ${mat?.title}\nContent excerpt: ${(mat?.content||mat?.notes||'').substring(0,1000)}\n\nFeedback: 1-2 sentences, one hint, ONE question. Under 80 words. Friendly.`);
+  const r = await mistralChat(hist, `Help student understand "${c?.concept}" from: ${mat?.title}\nContent excerpt: ${(mat?.content||mat?.notes||'').substring(0,1000)}\n\nFeedback: 1-2 sentences, one hint, ONE question. Under 80 words. Friendly.`);
   removeTyping(`cmsgs-${idx}-${matId}`);
   appendAIMsg(`cmsgs-${idx}-${matId}`, 'ai', r);
   state.msgs.push({role:'ai', text:r}); state.working = false;
@@ -1600,7 +1636,7 @@ async function getPositionHint() {
   const d = ud(); const mat = d.materials.find(m=>m.id===matId); if (!mat) return;
   const btn = document.querySelector('[onclick="getPositionHint()"]');
   if (btn) { btn.textContent='⏳…'; btn.disabled=true; }
-  const hint = await callClaude(`Student preparing a discussion position about:\nTitle: ${mat.title}\nContent: ${(mat.content||mat.notes||'').substring(0,1200)}\nStudent's current position: "${document.getElementById('discussion-position').value||'(nothing yet)'}"\n\nGive ONE brief hint (1-2 sentences) to help them form a stronger position. Don't give the full answer.`, '', 150);
+  const hint = await callMistral(`Student preparing a discussion position about:\nTitle: ${mat.title}\nContent: ${(mat.content||mat.notes||'').substring(0,1200)}\nStudent's current position: "${document.getElementById('discussion-position').value||'(nothing yet)'}"\n\nGive ONE brief hint (1-2 sentences) to help them form a stronger position. Don't give the full answer.`, '', 150);
   document.getElementById('position-ai-hint').textContent = '💡 ' + (hint || 'Think about which concept you feel most strongly about — that could anchor your position.');
   document.getElementById('position-ai-hint').classList.remove('hidden');
   if (btn) { btn.textContent='✨ Get a hint from AI'; btn.disabled=false; }
@@ -1829,7 +1865,7 @@ NEVER forget to append the [STEP:X] signal at the very end of every response.`;
 
   try {
     document.getElementById(typingId)?.remove();
-    let reply = await claudeChat(history, system, 600);
+    let reply = await mistralChat(history, system, 600);
 
     // Parse and strip step signal
     const stepMatch = reply.match(/\[STEP:(\d)\]/);
@@ -2000,7 +2036,7 @@ async function doPhraseTranslate(text) {
   transWrap.style.display = 'block';
   transText.innerHTML = '<span style="color:var(--s400)">✨ Translating…</span>';
   try {
-    const result = await callClaude(
+    const result = await callMistral(
       `Convert this into 1 natural English sentence a university student could say in a seminar discussion. Keep it simple and direct. Reply ONLY with the English sentence, nothing else:\n"${text}"`,
       '', 120
     );
@@ -2046,7 +2082,7 @@ What the student wants to say: "${intent}"
 Material topic: "${mat?.title || 'the reading'}"
 Rewrite the student's idea as a natural discussion sentence that follows the style of the template. Simple English (B1 level). One sentence only.
 Return ONLY the sentence.`;
-  const result = await callClaude(prompt, '', 120);
+  const result = await callMistral(prompt, '', 120);
   if (btn) { btn.disabled = false; btn.textContent = '✨ Rewrite for me'; }
   if (result) {
     const inp = document.getElementById('new-phrase-input');
@@ -2105,7 +2141,7 @@ async function startRehearsal() {
   let li=0;const iv=setInterval(()=>{li++;const el=document.getElementById('loading-msg');if(el&&li<loadMsgs.length)el.textContent=loadMsgs[li];},900);
   let opening='';
   const names=sessionClassmates.map(c=>c.name).join(', ');
-  try{opening=await callClaude(`You are ${sessionClassmates[0].name}, one of ${numC} students (${names}) in a university seminar. You just read:\n${sessionMaterialContext}\n\nOpen the discussion with a specific comment or question about the material. 2-3 sentences max. End with exactly ONE question. No bullets.`);}
+  try{opening=await callMistral(`You are ${sessionClassmates[0].name}, one of ${numC} students (${names}) in a university seminar. You just read:\n${sessionMaterialContext}\n\nOpen the discussion with a specific comment or question about the material. 2-3 sentences max. End with exactly ONE question. No bullets.`);}
   catch(e){opening=`I found "${mat.title}" really thought-provoking. What do you think is the most important argument?`;}
   clearInterval(iv);
   document.getElementById('rehearsal-loading').classList.add('hidden');
@@ -2131,7 +2167,7 @@ async function aiRespond(interpreted){
   const t=types[Math.floor(Math.random()*types.length)];
   const instr={challenge:'Challenge the student\'s point using a specific detail. End with ONE question.',question:'Ask ONE probing question linking their point to a concept in the material.',agree_extend:'Briefly agree then extend. End with ONE question.',counterexample:'Offer one nuance from the material. End with ONE question.'};
   let reply='';
-  try{reply=await callClaude(`You are ${sp.name}, a student in a seminar. You are speaking DIRECTLY to the user (the student using this app). Do NOT address or name any other classmates.\nMaterial:\n${sessionMaterialContext}\n\nThe user just said: "${interpreted}"\n\nTask: ${instr[t]}\nRules: ONE question directed at the user. Max 3 sentences. No bullets. Do not use any names.`);}
+  try{reply=await callMistral(`You are ${sp.name}, a student in a seminar. You are speaking DIRECTLY to the user (the student using this app). Do NOT address or name any other classmates.\nMaterial:\n${sessionMaterialContext}\n\nThe user just said: "${interpreted}"\n\nTask: ${instr[t]}\nRules: ONE question directed at the user. Max 3 sentences. No bullets. Do not use any names.`);}
   catch(e){reply='Interesting point. How does the material support that view?';}
   td.remove();const mid='ai'+Date.now();chat.appendChild(createAIBubble(sp,reply,mid));scrollChat();
   setTimeout(()=>togglePlay(mid,reply),300);
@@ -2145,7 +2181,7 @@ async function moveToNext(){
   td.innerHTML=`<div class="msg-avatar" style="background:${sp.color};color:white">${sp.name[0]}</div><div><div style="font-size:11.5px;color:var(--s400);margin-bottom:5px">${sp.name}</div><div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
   chat.appendChild(td);scrollChat();
   let reply='';
-  try{reply=await callClaude(`You are ${sp.name}, a student in a seminar. The group has been discussing this material:\n${sessionMaterialContext}\n\nPivot the conversation to a NEW aspect or concept from the material that hasn't been discussed yet. Start with a brief transition phrase (e.g. "Actually, I want to bring up…" or "That reminds me, what about…"). End with ONE question directed at the group. Max 3 sentences. No bullets.`);}
+  try{reply=await callMistral(`You are ${sp.name}, a student in a seminar. The group has been discussing this material:\n${sessionMaterialContext}\n\nPivot the conversation to a NEW aspect or concept from the material that hasn't been discussed yet. Start with a brief transition phrase (e.g. "Actually, I want to bring up…" or "That reminds me, what about…"). End with ONE question directed at the group. Max 3 sentences. No bullets.`);}
   catch(e){reply="Actually, I want to bring up a different angle — what do you think about the broader implications of this topic?";}
   td.remove();const mid='ai'+Date.now();chat.appendChild(createAIBubble(sp,reply,mid));scrollChat();
   setTimeout(()=>togglePlay(mid,reply),300);
@@ -2153,7 +2189,7 @@ async function moveToNext(){
 }
 async function interpretSpeech(raw){
   if(!raw.trim())return raw;
-  try{const r=await callClaude(`A student in a seminar about:\n${sessionMaterialContext}\n\nSpeech recognition gave: "${raw}"\n\nCorrect obvious mis-transcriptions based on context. Return ONLY the corrected version, no explanation.`,'',200);return r.trim()||raw;}catch(e){return raw;}
+  try{const r=await callMistral(`A student in a seminar about:\n${sessionMaterialContext}\n\nSpeech recognition gave: "${raw}"\n\nCorrect obvious mis-transcriptions based on context. Return ONLY the corrected version, no explanation.`,'',200);return r.trim()||raw;}catch(e){return raw;}
 }
 
 // ── CHANGE 2: New mic flow — listen → stop → editable box → send ──
@@ -2679,7 +2715,7 @@ async function generateAIPhrases(){
   try{
     const moveIds = PHRASE_TEMPLATES.map(t=>t.id).join(',');
     const moveLabels = PHRASE_TEMPLATES.map(t=>`"${t.id}": ${t.label} (${t.instruction})`).join('\n');
-    const raw=await callClaude(
+    const raw=await callMistral(
       `You are helping international university students prepare phrases for a seminar discussion.
 
 Material title: "${mat.title}"
@@ -2736,7 +2772,7 @@ async function getAIInsights(){
   const times = document.getElementById('times-spoken').value || 0;
   const sat = reflectionSat;
   const prompt = `A student just completed a class discussion and filled in this reflection:\n\nMaterial: "${mat?.title || 'Unknown'}"\nDid they speak? ${spoke ? `Yes, ${times} time(s)` : 'No'}\nWhat worked: "${whatWorked || 'Not filled in'}"\nChallenges: "${challenges || 'Not filled in'}"\nWhat to improve: "${improvement || 'Not filled in'}"\nSatisfaction rating: ${sat}/5\n\nWrite 2-3 sentences of warm, specific, actionable coaching feedback. \n- If they spoke: acknowledge it specifically and suggest one concrete next step.\n- If they didn't speak: normalise it gently, give ONE very small low-risk action for next class.\nKeep it encouraging, practical, and under 60 words. No bullet points.`;
-  const insight = await callClaude(prompt, '', 200);
+  const insight = await callMistral(prompt, '', 200);
   document.getElementById('insight-text').textContent = insight || "Every class is a new opportunity. Try preparing one short comment before the next session — even one sentence builds momentum!";
   document.getElementById('ai-insights-output').classList.remove('hidden');
   btn.textContent = '✨ Get AI Insights'; btn.disabled = false;
@@ -2757,7 +2793,7 @@ async function toggleTranslatorMic(){
   }else{transListening=false;if(transRecognizer)try{transRecognizer.stop();}catch(e){}resetTransMic();const h=document.getElementById('trans-source-text').textContent;if(h&&h!=='—')doTranslate(h);}
 }
 function resetTransMic(){document.getElementById('trans-mic-ring').className='mic-ring idle';document.getElementById('trans-mic-label').textContent='Tap to start speaking';}
-async function doTranslate(text){document.getElementById('trans-output-card').style.display='block';document.getElementById('trans-output-text').innerHTML='<span style="color:var(--s400)">✨ Converting…</span>';const r=await callClaude(`Convert this to 1-2 short natural English sentences a student could say in class. Reply ONLY with the English:\n"${text}"`);document.getElementById('trans-output-text').textContent=r||'Translation failed.';window._lastTrans=r;}
+async function doTranslate(text){document.getElementById('trans-output-card').style.display='block';document.getElementById('trans-output-text').innerHTML='<span style="color:var(--s400)">✨ Converting…</span>';const r=await callMistral(`Convert this to 1-2 short natural English sentences a student could say in class. Reply ONLY with the English:\n"${text}"`);document.getElementById('trans-output-text').textContent=r||'Translation failed.';window._lastTrans=r;}
 function copyTranslation(){navigator.clipboard.writeText(document.getElementById('trans-output-text').textContent).then(()=>toast('Copied!','success')).catch(()=>toast('Could not copy','error'));}
 function saveToPhrase(){const t=window._lastTrans;if(!t){toast('Nothing to save yet','error');return;}navigate('DiscussionPhrases');setTimeout(()=>{document.getElementById('new-phrase-input').value=t;},200);}
 function clearTranslation(){document.getElementById('trans-source-text').textContent='—';document.getElementById('trans-output-card').style.display='none';window._lastTrans=null;}
