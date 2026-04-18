@@ -1850,29 +1850,46 @@ async function sendPrepFreeChat() {
   container.scrollTop = container.scrollHeight;
 
   try {
-    // Pythonコードと同じ: 全履歴をそのままMistralへ送る
-    const reply = await mistralChat(state.msgs, state.systemPrompt);
+    // 最初の2件（Hello + Welcome）は必ず残し、残りは最新16件に制限
+    const trimmedMsgs = state.msgs.length > 18
+      ? [...state.msgs.slice(0, 2), ...state.msgs.slice(-16)]
+      : state.msgs;
+
+    const reply = await mistralChat(trimmedMsgs, state.systemPrompt);
     document.getElementById(typingId)?.remove();
 
-    // AIの返答を履歴に追加
-    state.msgs.push({ role: 'assistant', content: reply });
-    appendPrepFreeMsg('ai', reply);
-
-    // ステージ進行をテキストから検出（"✓ Stage X complete!" を探す）
-    const completeMatch = reply.match(/✓\s*Stage\s*(\d)\s*complete/i);
-    if (completeMatch) {
-      const completedStage = parseInt(completeMatch[1]);
-      if (completedStage >= state.currentStep && completedStage < 4) {
-        state.currentStep = completedStage + 1;
-        renderPrepSteps(state.currentStep);
+    // 空返答のリトライ
+    if (!reply || reply.trim() === '' || reply === '返事が空っぽでした。') {
+      const retryReply = await mistralChat(trimmedMsgs, state.systemPrompt);
+      if (!retryReply || retryReply.trim() === '') {
+        appendPrepFreeMsg('ai', 'Sorry, something went wrong. Please try again.');
+        state.working = false;
+        return;
+      }
+      state.msgs.push({ role: 'assistant', content: retryReply });
+      appendPrepFreeMsg('ai', retryReply);
+      const m2 = retryReply.match(/✓\s*Stage\s*(\d)\s*complete/i);
+      if (m2) {
+        const s2 = parseInt(m2[1]);
+        if (s2 >= state.currentStep && s2 < 4) { state.currentStep = s2 + 1; renderPrepSteps(state.currentStep); }
+      }
+    } else {
+      state.msgs.push({ role: 'assistant', content: reply });
+      appendPrepFreeMsg('ai', reply);
+      // ステージ進行をテキストから検出
+      const completeMatch = reply.match(/✓\s*Stage\s*(\d)\s*complete/i);
+      if (completeMatch) {
+        const completedStage = parseInt(completeMatch[1]);
+        if (completedStage >= state.currentStep && completedStage < 4) {
+          state.currentStep = completedStage + 1;
+          renderPrepSteps(state.currentStep);
+        }
       }
     }
 
   } catch(e) {
     document.getElementById(typingId)?.remove();
-    const err = 'Sorry, something went wrong. Please try again.';
-    state.msgs.push({ role: 'assistant', content: err });
-    appendPrepFreeMsg('ai', err);
+    appendPrepFreeMsg('ai', 'Sorry, something went wrong. Please try again.');
   }
 
   state.working = false;
