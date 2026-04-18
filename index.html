@@ -1872,7 +1872,7 @@ async function sendPrepFreeChat() {
 
     if (!isValidReply(reply)) {
       // リトライも失敗 → 履歴には追加しない（汚染防止）
-      appendPrepFreeMsg('ai', '⚠️ 返答を取得できませんでした。もう一度送信してください。');
+      appendPrepFreeMsg('ai', '⚠️ No response received. Please send your message again.');
     } else {
       state.msgs.push({ role: 'assistant', content: reply });
       appendPrepFreeMsg('ai', reply);
@@ -1890,7 +1890,7 @@ async function sendPrepFreeChat() {
   } catch(e) {
     document.getElementById(typingId)?.remove();
     // エラー時も履歴には追加しない
-    appendPrepFreeMsg('ai', '⚠️ 返答を取得できませんでした。もう一度送信してください。');
+    appendPrepFreeMsg('ai', '⚠️ No response received. Please send your message again.');
   }
 
   state.working = false;
