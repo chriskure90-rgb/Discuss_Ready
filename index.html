@@ -1238,17 +1238,7 @@ function toast(msg, type='') {
 // ══════════════════════════════════════════
 // API — 全てMistralを使用
 // ══════════════════════════════════════════
-async function callClaude(prompt, system = '', maxTok = 600) {
-  return callMistral(prompt, system, maxTok);
-}
-async function claudeChat(history, system, maxTok = 300) {
-  return mistralChat(history, system, maxTok);
-}
-  
-// ══════════════════════════════════════════
-// MISTRAL API (Pre-Class Prep)
-// ══════════════════════════════════════════
-async function mistralChat(history, system, maxTok = 600) {
+async function mistralChat(history, system, maxTok = 800) {
   try {
     const response = await fetch('/api/chat-mistral', {
       method: 'POST',
@@ -1263,7 +1253,7 @@ async function mistralChat(history, system, maxTok = 600) {
   }
 }
 
-async function callMistral(prompt, system = '', maxTok = 600) {
+async function callMistral(prompt, system = '', maxTok = 800) {
   try {
     const response = await fetch('/api/chat-mistral', {
       method: 'POST',
@@ -1279,6 +1269,14 @@ async function callMistral(prompt, system = '', maxTok = 600) {
     console.error('Mistral error:', error);
     return '';
   }
+}
+
+// 旧関数名 → Mistralへ転送（互換性維持）
+async function callClaude(prompt, system = '', maxTok = 600) {
+  return callMistral(prompt, system, maxTok);
+}
+async function claudeChat(history, system, maxTok = 300) {
+  return mistralChat(history, system, maxTok);
 }
 
 // ══════════════════════════════════════════
@@ -1680,82 +1678,10 @@ function renderPrepSteps(currentStep) {
   }
 }
 
-function initPrepFreeChat(matId, mat) {
-  // Always start fresh when material is loaded/changed
-  PREP_CHAT_STATES[matId] = { msgs: [], working: false, currentStep: 1 };
-  const state = PREP_CHAT_STATES[matId];
-  const welcome = `Welcome! Let's prepare for your class together. We'll work through 4 stages. First you share your idea, then I'll give feedback based on the material to help you improve. Let's start with Stage 1 — Self-Explanation. What are the main points of the preparation material? Please summarise them in your own words.`;
-  state.msgs.push({ role: 'ai', text: welcome });
-  renderPrepSteps(1);
-  const container = document.getElementById('prep-free-chat-msgs');
-  if(container) container.innerHTML = '';
-  appendPrepFreeMsg('ai', welcome);
-  const clearBtn = document.getElementById('prep-chat-clear-btn');
-  if (clearBtn) clearBtn.style.display = 'none';
-}
-
-function renderPrepFreeChatMsgs(matId) {
-  const container = document.getElementById('prep-free-chat-msgs');
-  if (!container) return;
-  const state = PREP_CHAT_STATES[matId];
-  if (!state) return;
-  container.innerHTML = '';
-  state.msgs.forEach(m => appendPrepFreeMsg(m.role, m.text));
-}
-
-function appendPrepFreeMsg(role, text) {
-  const container = document.getElementById('prep-free-chat-msgs');
-  if (!container) return;
-  const isAI = role === 'ai';
-  const div = document.createElement('div');
-  div.style.cssText = `display:flex;gap:10px;${isAI ? '' : 'flex-direction:row-reverse'}`;
-  div.innerHTML = `
-    <div style="width:32px;height:32px;border-radius:50%;background:${isAI ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : 'linear-gradient(135deg,#3b82f6,#06b6d4)'};display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px">${isAI ? '🤖' : 'You'}</div>
-    <div style="max-width:78%;padding:11px 15px;border-radius:${isAI ? '4px 14px 14px 14px' : '14px 4px 14px 14px'};background:${isAI ? 'white' : 'linear-gradient(135deg,#4f46e5,#3b82f6)'};color:${isAI ? 'var(--s700)' : 'white'};font-size:14px;line-height:1.65;border:${isAI ? '1px solid var(--border)' : 'none'};box-shadow:0 2px 8px rgba(0,0,0,.06)">${text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</div>`;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-}
-
-async function sendPrepFreeChat() {
-  const matId = document.getElementById('prep-material-select').value;
-  if (!matId) { toast('Please select a material first', 'error'); return; }
-  const inp = document.getElementById('prep-free-chat-input');
-  const text = inp.value.trim();
-  if (!text) return;
-  const state = PREP_CHAT_STATES[matId];
-  if (!state || state.working) return;
-
-  inp.value = '';
-  inp.style.height = 'auto';
-  state.msgs.push({ role: 'user', text });
-  appendPrepFreeMsg('user', text);
-  state.working = true;
-
-  const sendBtn = document.getElementById('prep-free-chat-send');
-  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '…'; }
-
-  // Typing indicator
-  const typingId = 'pfc-typing-' + Date.now();
-  const typingDiv = document.createElement('div');
-  typingDiv.id = typingId;
-  typingDiv.style.cssText = 'display:flex;gap:10px;align-items:center';
-  typingDiv.innerHTML = `<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;color:white;font-size:11px">🤖</div><div class="typing-dots" style="border-radius:4px 14px 14px 14px"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
-  const container = document.getElementById('prep-free-chat-msgs');
-  container.appendChild(typingDiv);
-  container.scrollTop = container.scrollHeight;
-
-  const d = ud();
-  const mat = d.materials.find(m => m.id === matId);
-  const concepts = (mat?.ai_concepts || []).map(c => typeof c === 'string' ? c : c.concept).join(', ');
+function buildPrepSystemPrompt(mat) {
   const content = (mat?.content || mat?.notes || '').substring(0, 3000);
-
-  // 会話履歴をそのまま送る（フィルタリングなし）
-  const history = state.msgs.map(m => ({
-    role: m.role === 'ai' ? 'assistant' : 'user',
-    content: m.text
-  }));
-
-  const system = `# ROLE
+  const concepts = (mat?.ai_concepts || []).map(c => typeof c === 'string' ? c : c.concept).join(', ');
+  return `# ROLE
 You are a warm, supportive AI tutor helping an international student prepare for an English-medium academic discussion.
 
 # CONTEXT & GROUNDING
@@ -1788,79 +1714,163 @@ If they receive a lower score, you must provide feedback and wait for them to tr
 
 --- Stage 1: Conceptual Self-Explanation ---
 Goal: Summarise the main ideas of the material accurately.
-- Score 2 (Accurate & Complete): Display **[Score: 2/2]**. Say "✓ Stage 1 complete!". Move to Stage 2. Append [STEP:2] at the very end.
-- Score 1 (Partial/Missing details): Display **[Score: 1/2]**. Advise them to recheck a specific chapter/section. Wait. Append [STEP:1] at the very end.
-- Score 0 (Incorrect/Missing): Display **[Score: 0/2]**. Point to exact section. Give 1 hint. Wait. Append [STEP:1] at the very end.
+- Score 2 (Accurate & Complete): Display **[Score: 2/2]**. Say "✓ Stage 1 complete!". Then IMMEDIATELY ask the Stage 2 opening question in the SAME response.
+- Score 1 (Partial/Missing details): Display **[Score: 1/2]**. Advise them to recheck a specific chapter/section to add the missing details. Wait for their next attempt.
+- Score 0 (Incorrect/Missing): Display **[Score: 0/2]**. Advise them to recheck the material, pointing out the exact chapter/section. Give 1 hint. Wait for their next attempt.
 
 --- Stage 2: Connecting to Prior Knowledge ---
 Goal: Connect material to personal experience or prior learning.
-- Score 2 (Clear link & explanation): Display **[Score: 2/2]**. Say "✓ Stage 2 complete!". Move to Stage 3. Append [STEP:3] at the very end.
-- Score 1 (Vague link only): Display **[Score: 1/2]**. Ask them to elaborate. Wait. Append [STEP:2] at the very end.
-- Score 0 (No connection): Display **[Score: 0/2]**. Explain the need for a link. Give 1 hint. Wait. Append [STEP:2] at the very end.
+- Score 2 (Clear link & explanation): Display **[Score: 2/2]**. Say "✓ Stage 2 complete!". Then IMMEDIATELY ask the Stage 3 opening question in the SAME response.
+- Score 1 (Vague link only): Display **[Score: 1/2]**. Ask them to elaborate on the connection. Wait for their next attempt.
+- Score 0 (No connection): Display **[Score: 0/2]**. Explain the need for a link. Give 1 hint. Wait for their next attempt.
 
 --- Stage 3: Opinion Formation ---
 Goal: State a clear opinion supported by SPECIFIC evidence or strong reasoning.
-- Score 3 (Opinion + Specific Evidence): Display **[Score: 3/3]**. Say "✓ Stage 3 complete!". Move to Stage 4. Append [STEP:4] at the very end.
-- Score 2 (Opinion + Vague Reason): Display **[Score: 2/3]**. Suggest using a direct quote. Wait. Append [STEP:3] at the very end.
-- Score 1 (Opinion only): Display **[Score: 1/3]**. Ask "Why do you think so?". Wait. Append [STEP:3] at the very end.
-- Score 0 (No position): Display **[Score: 0/3]**. Encourage taking a side. Wait. Append [STEP:3] at the very end.
+- Score 3 (Opinion + Specific Evidence): Display **[Score: 3/3]**. Say "✓ Stage 3 complete!". Then IMMEDIATELY ask the Stage 4 opening question in the SAME response.
+- Score 2 (Opinion + Vague Reason): Display **[Score: 2/3]**. Praise the stance, but explicitly suggest they use a direct quote from the material. Wait for their next attempt.
+- Score 1 (Opinion only): Display **[Score: 1/3]**. Ask "Why do you think so?". Wait for their next attempt.
+- Score 0 (No position): Display **[Score: 0/3]**. Encourage taking a side. Wait for their next attempt.
 
 --- Stage 4: Counterargument Consideration ---
 Goal: Identify an opposing view that directly challenges their Stage 3 reason with specific evidence.
-- Score 3 (Direct challenge + Specific Evidence): Display **[Score: 3/3]**. Say "✓ Stage 4 complete! 🎉". Generate Rehearsal Summary. Append [STEP:4] at the very end.
-- Score 2 (Direct challenge but weak logic): Display **[Score: 2/3]**. Ask for stronger evidence. Wait. Append [STEP:4] at the very end.
-- Score 1 (General counter): Display **[Score: 1/3]**. Ask how an opponent would respond to their specific Stage 3 reason. Wait. Append [STEP:4] at the very end.
-- Score 0 (No counter): Display **[Score: 0/3]**. Explain what a counterargument is. Wait. Append [STEP:4] at the very end.
+- Score 3 (Direct challenge + Specific Evidence): Display **[Score: 3/3]**. Say "✓ Stage 4 complete! 🎉". Generate Rehearsal Summary.
+- Score 2 (Direct challenge but weak logic): Display **[Score: 2/3]**. Ask them to provide stronger evidence, suggesting they find a quote from the text for the opposing side. Wait for their next attempt.
+- Score 1 (General counter): Display **[Score: 1/3]**. Ask how an opponent would respond to their specific Stage 3 reason. Wait for their next attempt.
+- Score 0 (No counter): Display **[Score: 0/3]**. Explain what a counterargument is. Wait for their next attempt.
 
 # REHEARSAL SUMMARY
-After Stage 4 complete: "You have completed all 4 stages. Here is your Rehearsal Summary — sentences you can use when speaking in class today:"
+After Stage 4: "You have completed all 4 stages. Here is your Rehearsal Summary — sentences you can use when speaking in class today:"
 Labels: My Summary:, My Connection:, My Opinion:, Counterargument to Consider: (1-2 sentences each).
 
 # FORMAT AND TONE
 - Warm, conversational prose (CEFR B1).
-- Max 3 sentences per response (excluding Score).
-- Total word count under 60 words.
 - No bullet points or lists in conversation.
+- IMPORTANT: When a student passes a stage (Score 2/2 or 3/3), your response MUST include BOTH the completion message AND the opening question for the next stage. Do not stop after "Stage X complete!".
 
-# CURRENT STAGE
-You are currently on Stage ${state.currentStep}. ONLY evaluate for Stage ${state.currentStep}.
-NEVER forget to append the [STEP:X] signal at the very end of every response.`;
+# HOW TO START
+Respond EXACTLY with:
+"Welcome! Let's prepare for your class together. We'll work through 4 stages. First you share your idea, then I'll give feedback based on the material to help you improve. Let's start with Stage 1 — Self-Explanation. What are the main points of the preparation material? Please summarise them in your own words."`;
+}
+
+async function initPrepFreeChat(matId, mat) {
+  // Pythonコードと同じ構造: system + "Hello! I am ready to start." → Mistralがウェルカムを生成
+  const systemPrompt = buildPrepSystemPrompt(mat);
+  const initialHistory = [
+    { role: 'user', content: 'Hello! I am ready to start.' }
+  ];
+
+  PREP_CHAT_STATES[matId] = {
+    systemPrompt,
+    msgs: [],  // 会話履歴（system除く）
+    working: true,
+    currentStep: 1
+  };
+
+  const container = document.getElementById('prep-free-chat-msgs');
+  if (container) container.innerHTML = '';
+  renderPrepSteps(1);
+
+  // タイピングインジケーター表示
+  const typingId = 'pfc-init-typing';
+  const typingDiv = document.createElement('div');
+  typingDiv.id = typingId;
+  typingDiv.style.cssText = 'display:flex;gap:10px;align-items:center';
+  typingDiv.innerHTML = `<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;color:white;font-size:11px">🤖</div><div class="typing-dots" style="border-radius:4px 14px 14px 14px"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  if (container) { container.appendChild(typingDiv); container.scrollTop = container.scrollHeight; }
+
+  // Mistralからウェルカムメッセージを取得（Pythonコードと同じ）
+  const welcome = await mistralChat(initialHistory, systemPrompt);
+  document.getElementById(typingId)?.remove();
+
+  // 会話履歴に追加（user trigger + AI welcome）
+  PREP_CHAT_STATES[matId].msgs.push({ role: 'user', content: 'Hello! I am ready to start.' });
+  PREP_CHAT_STATES[matId].msgs.push({ role: 'assistant', content: welcome });
+  PREP_CHAT_STATES[matId].working = false;
+
+  appendPrepFreeMsg('ai', welcome);
+
+  const clearBtn = document.getElementById('prep-chat-clear-btn');
+  if (clearBtn) clearBtn.style.display = 'none';
+}
+
+function renderPrepFreeChatMsgs(matId) {
+  const container = document.getElementById('prep-free-chat-msgs');
+  if (!container) return;
+  const state = PREP_CHAT_STATES[matId];
+  if (!state) return;
+  container.innerHTML = '';
+  state.msgs.forEach(m => {
+    if (m.role === 'user' && m.content === 'Hello! I am ready to start.') return; // 初期トリガーは非表示
+    appendPrepFreeMsg(m.role === 'assistant' ? 'ai' : 'user', m.content);
+  });
+}
+
+function appendPrepFreeMsg(role, text) {
+  const container = document.getElementById('prep-free-chat-msgs');
+  if (!container) return;
+  const isAI = role === 'ai';
+  const div = document.createElement('div');
+  div.style.cssText = `display:flex;gap:10px;${isAI ? '' : 'flex-direction:row-reverse'}`;
+  div.innerHTML = `
+    <div style="width:32px;height:32px;border-radius:50%;background:${isAI ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : 'linear-gradient(135deg,#3b82f6,#06b6d4)'};display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px">${isAI ? '🤖' : 'You'}</div>
+    <div style="max-width:78%;padding:11px 15px;border-radius:${isAI ? '4px 14px 14px 14px' : '14px 4px 14px 14px'};background:${isAI ? 'white' : 'linear-gradient(135deg,#4f46e5,#3b82f6)'};color:${isAI ? 'var(--s700)' : 'white'};font-size:14px;line-height:1.65;border:${isAI ? '1px solid var(--border)' : 'none'};box-shadow:0 2px 8px rgba(0,0,0,.06)">${text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendPrepFreeChat() {
+  const matId = document.getElementById('prep-material-select').value;
+  if (!matId) { toast('Please select a material first', 'error'); return; }
+  const inp = document.getElementById('prep-free-chat-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  const state = PREP_CHAT_STATES[matId];
+  if (!state || state.working) return;
+
+  inp.value = '';
+  inp.style.height = 'auto';
+
+  // ユーザーメッセージを履歴に追加・表示
+  state.msgs.push({ role: 'user', content: text });
+  appendPrepFreeMsg('user', text);
+  state.working = true;
+
+  const sendBtn = document.getElementById('prep-free-chat-send');
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '…'; }
+
+  // タイピングインジケーター
+  const typingId = 'pfc-typing-' + Date.now();
+  const typingDiv = document.createElement('div');
+  typingDiv.id = typingId;
+  typingDiv.style.cssText = 'display:flex;gap:10px;align-items:center';
+  typingDiv.innerHTML = `<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;color:white;font-size:11px">🤖</div><div class="typing-dots" style="border-radius:4px 14px 14px 14px"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  const container = document.getElementById('prep-free-chat-msgs');
+  container.appendChild(typingDiv);
+  container.scrollTop = container.scrollHeight;
 
   try {
+    // Pythonコードと同じ: 全履歴をそのままMistralへ送る
+    const reply = await mistralChat(state.msgs, state.systemPrompt);
     document.getElementById(typingId)?.remove();
-    let reply = await mistralChat(history, system, 600);
 
-    // ① [STEP:X]シグナルで進行判定
-    const stepMatch = reply.match(/\[STEP:(\d)\]/);
-    if (stepMatch) {
-      const newStep = parseInt(stepMatch[1]);
-      if (newStep > state.currentStep && newStep <= 4) {
-        state.currentStep = newStep;
+    // AIの返答を履歴に追加
+    state.msgs.push({ role: 'assistant', content: reply });
+    appendPrepFreeMsg('ai', reply);
+
+    // ステージ進行をテキストから検出（"✓ Stage X complete!" を探す）
+    const completeMatch = reply.match(/✓\s*Stage\s*(\d)\s*complete/i);
+    if (completeMatch) {
+      const completedStage = parseInt(completeMatch[1]);
+      if (completedStage >= state.currentStep && completedStage < 4) {
+        state.currentStep = completedStage + 1;
         renderPrepSteps(state.currentStep);
-      }
-      reply = reply.replace(/\[STEP:\d\]/g, '').trim();
-    } else {
-      // ② フォールバック: "Stage X complete" テキストから自動検出
-      const completeMatch = reply.match(/✓\s*Stage\s*(\d)\s*complete/i);
-      if (completeMatch) {
-        const completedStage = parseInt(completeMatch[1]);
-        const nextStep = completedStage + 1;
-        if (completedStage === state.currentStep && nextStep <= 4) {
-          state.currentStep = nextStep;
-          renderPrepSteps(state.currentStep);
-        } else if (completedStage === 4) {
-          // Stage 4完了
-          renderPrepSteps(4);
-        }
       }
     }
 
-    state.msgs.push({ role: 'ai', text: reply });
-    appendPrepFreeMsg('ai', reply);
   } catch(e) {
     document.getElementById(typingId)?.remove();
     const err = 'Sorry, something went wrong. Please try again.';
-    state.msgs.push({ role: 'ai', text: err });
+    state.msgs.push({ role: 'assistant', content: err });
     appendPrepFreeMsg('ai', err);
   }
 
@@ -1877,7 +1887,6 @@ NEVER forget to append the [STEP:X] signal at the very end of every response.`;
 function clearPrepChat() {
   const matId = document.getElementById('prep-material-select').value;
   if (!matId) return;
-  PREP_CHAT_STATES[matId] = { msgs: [], working: false };
   const d = ud();
   const mat = d.materials.find(m => m.id === matId);
   initPrepFreeChat(matId, mat);
