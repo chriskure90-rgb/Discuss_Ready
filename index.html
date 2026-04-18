@@ -1238,7 +1238,6 @@ function toast(msg, type='') {
 // ══════════════════════════════════════════
 // API — 全てMistralを使用
 // ══════════════════════════════════════════
-// 旧関数名はそのまま残してMistralへ転送（互換性維持）
 async function callClaude(prompt, system = '', maxTok = 600) {
   return callMistral(prompt, system, maxTok);
 }
@@ -1750,10 +1749,11 @@ async function sendPrepFreeChat() {
   const concepts = (mat?.ai_concepts || []).map(c => typeof c === 'string' ? c : c.concept).join(', ');
   const content = (mat?.content || mat?.notes || '').substring(0, 3000);
 
-  // Strip any AI messages that contain stage-based language before sending history
-  const stagePattern = /stage\s*\d|step\s*\d|prior knowledge|self.expla|explain.*back|in your own words/i;
-  const cleanMsgs = state.msgs.filter(m => !(m.role === 'ai' && stagePattern.test(m.text)));
-  const history = cleanMsgs.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text }));
+  // 会話履歴をそのまま送る（フィルタリングなし）
+  const history = state.msgs.map(m => ({
+    role: m.role === 'ai' ? 'assistant' : 'user',
+    content: m.text
+  }));
 
   const system = `# ROLE
 You are a warm, supportive AI tutor helping an international student prepare for an English-medium academic discussion.
@@ -1830,7 +1830,7 @@ NEVER forget to append the [STEP:X] signal at the very end of every response.`;
     document.getElementById(typingId)?.remove();
     let reply = await mistralChat(history, system, 600);
 
-    // Parse and strip step signal
+    // ① [STEP:X]シグナルで進行判定
     const stepMatch = reply.match(/\[STEP:(\d)\]/);
     if (stepMatch) {
       const newStep = parseInt(stepMatch[1]);
@@ -1838,7 +1838,21 @@ NEVER forget to append the [STEP:X] signal at the very end of every response.`;
         state.currentStep = newStep;
         renderPrepSteps(state.currentStep);
       }
-      reply = reply.replace(/\[STEP:\d\]/, '').trim();
+      reply = reply.replace(/\[STEP:\d\]/g, '').trim();
+    } else {
+      // ② フォールバック: "Stage X complete" テキストから自動検出
+      const completeMatch = reply.match(/✓\s*Stage\s*(\d)\s*complete/i);
+      if (completeMatch) {
+        const completedStage = parseInt(completeMatch[1]);
+        const nextStep = completedStage + 1;
+        if (completedStage === state.currentStep && nextStep <= 4) {
+          state.currentStep = nextStep;
+          renderPrepSteps(state.currentStep);
+        } else if (completedStage === 4) {
+          // Stage 4完了
+          renderPrepSteps(4);
+        }
+      }
     }
 
     state.msgs.push({ role: 'ai', text: reply });
