@@ -1850,29 +1850,29 @@ async function sendPrepFreeChat() {
   container.scrollTop = container.scrollHeight;
 
   try {
-    // 最初の2件（Hello + Welcome）は必ず残し、残りは最新16件に制限
-    const trimmedMsgs = state.msgs.length > 18
-      ? [...state.msgs.slice(0, 2), ...state.msgs.slice(-16)]
-      : state.msgs;
+    // フォールバック汚染メッセージを履歴から除去
+    const FALLBACKS = ['Good effort! Can you tell me more?', 'Sorry, something went wrong. Please try again.', '返事が空っぽでした。'];
+    const cleanMsgs = state.msgs.filter(m => !FALLBACKS.includes(m.content?.trim()));
 
-    const reply = await mistralChat(trimmedMsgs, state.systemPrompt);
+    // 最初の2件（Hello + Welcome）は必ず残し、残りは最新16件に制限
+    const trimmedMsgs = cleanMsgs.length > 18
+      ? [...cleanMsgs.slice(0, 2), ...cleanMsgs.slice(-16)]
+      : cleanMsgs;
+
+    const isValidReply = r => r && r.trim() !== '' && !FALLBACKS.includes(r.trim());
+
+    let reply = await mistralChat(trimmedMsgs, state.systemPrompt);
     document.getElementById(typingId)?.remove();
 
-    // 空返答のリトライ
-    if (!reply || reply.trim() === '' || reply === '返事が空っぽでした。') {
-      const retryReply = await mistralChat(trimmedMsgs, state.systemPrompt);
-      if (!retryReply || retryReply.trim() === '') {
-        appendPrepFreeMsg('ai', 'Sorry, something went wrong. Please try again.');
-        state.working = false;
-        return;
-      }
-      state.msgs.push({ role: 'assistant', content: retryReply });
-      appendPrepFreeMsg('ai', retryReply);
-      const m2 = retryReply.match(/✓\s*Stage\s*(\d)\s*complete/i);
-      if (m2) {
-        const s2 = parseInt(m2[1]);
-        if (s2 >= state.currentStep && s2 < 4) { state.currentStep = s2 + 1; renderPrepSteps(state.currentStep); }
-      }
+    // 空返答なら少し待ってリトライ
+    if (!isValidReply(reply)) {
+      await new Promise(res => setTimeout(res, 1500));
+      reply = await mistralChat(trimmedMsgs, state.systemPrompt);
+    }
+
+    if (!isValidReply(reply)) {
+      // リトライも失敗 → 履歴には追加しない（汚染防止）
+      appendPrepFreeMsg('ai', '⚠️ 返答を取得できませんでした。もう一度送信してください。');
     } else {
       state.msgs.push({ role: 'assistant', content: reply });
       appendPrepFreeMsg('ai', reply);
@@ -1889,7 +1889,8 @@ async function sendPrepFreeChat() {
 
   } catch(e) {
     document.getElementById(typingId)?.remove();
-    appendPrepFreeMsg('ai', 'Sorry, something went wrong. Please try again.');
+    // エラー時も履歴には追加しない
+    appendPrepFreeMsg('ai', '⚠️ 返答を取得できませんでした。もう一度送信してください。');
   }
 
   state.working = false;
