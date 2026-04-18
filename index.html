@@ -415,6 +415,12 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
           onmouseout="this.style.transform='';this.style.boxShadow='0 6px 20px rgba(124,58,237,.3)'">
           Add Your First Material →
         </button>
+        <button onclick="showView('app');navigate('Home');setTimeout(goToAllPhrases,100);"
+          style="width:100%;margin-top:12px;background:linear-gradient(135deg,#059669,#047857);color:white;border:none;padding:12px 32px;border-radius:12px;font-size:15px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(5,150,105,.35);transition:transform .15s,box-shadow .15s"
+          onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 22px rgba(5,150,105,.45)'"
+          onmouseout="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(5,150,105,.35)'">
+          💬 Check My Saved Phrases
+        </button>
         <p style="font-size:12px;color:#94a3b8;margin-top:12px">You can always come back to your dashboard from the sidebar.</p>
       </div>
 
@@ -457,7 +463,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--v600);margin-bottom:10px">📅 Next Class</div>
             <div class="flex items-center justify-between flex-wrap gap-3">
               <div><div style="font-size:17px;font-weight:800;color:var(--s900);margin-bottom:2px" id="home-upcoming-title"></div><div style="font-size:13px;color:var(--s500)" id="home-upcoming-subject"></div></div>
-              <div class="flex gap-2 flex-wrap"><button class="btn btn-primary" onclick="navigate('PreClassPrep')">Continue Preparing →</button><button class="btn btn-outline" onclick="navigate('Rehearsal')">Rehearse</button></div>
+              <div class="flex gap-2 flex-wrap"><button class="btn btn-primary" onclick="navigate('PreClassPrep')">Continue Preparing →</button><button class="btn btn-outline" onclick="navigate('Rehearsal')">Rehearse</button><button class="btn btn-emerald" onclick="goToAllPhrases()">💬 Phrases</button></div>
             </div>
             <div style="margin-top:14px"><div class="flex items-center justify-between mb-1"><span style="font-size:12px;font-weight:600;color:var(--s600)">Preparation progress</span><span style="font-size:12px;font-weight:700;color:var(--v600)" id="home-prep-pct">0%</span></div><div class="progress-bar"><div class="progress-fill" id="home-prep-bar" style="width:0%"></div></div></div>
           </div>
@@ -486,7 +492,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
               <div style="font-weight:800;font-size:14px;color:white">💬 My Saved Phrases</div>
               <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px" id="home-phrases-count">0 phrases saved</div>
             </div>
-            <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:white" onclick="navigate('DiscussionPhrases')">View All →</button>
+            <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:white" onclick="goToAllPhrases()">View All →</button>
           </div>
           <div id="home-phrases-list" style="padding:14px 20px;max-height:280px;overflow-y:auto"></div>
         </div>
@@ -3280,6 +3286,21 @@ function renderHome(){
 
   // Saved Phrases クイックビュー
   renderHomeSavedPhrases(d);
+}
+
+function goToAllPhrases() {
+  // 保存済みフレーズがある教材を優先してセット
+  const d = ud();
+  const phraseMatIds = Object.keys(d.phrases || {}).filter(id => {
+    const store = d.phrases[id];
+    return Object.values(store.templatePhrases || {}).some(arr => arr.some(p => p.starred || p.custom));
+  });
+  if (phraseMatIds.length > 0) {
+    CURRENT_MAT_ID = phraseMatIds[0];
+  } else if (d.materials.length > 0) {
+    CURRENT_MAT_ID = d.materials[0].id;
+  }
+  navigate('DiscussionPhrases');
 }
 
 function renderHomeSavedPhrases(d) {
